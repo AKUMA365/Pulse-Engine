@@ -1,0 +1,26 @@
+Copyright (c) 2025 Dima Semchenko
+
+All rights reserved.
+
+This software and its source code are proprietary.
+Permission is hereby granted to download and study the code solely for non-commercial personal,
+educational, or research purposes.
+
+Restricted Acts: You are NOT permitted to:
+
+    Modify, adapt, or create derivative works based on the source code.
+
+    Redistribute, publish, or share the code (in original or modified form) with third parties.
+
+    Use the code for any commercial purposes or as part of any revenue-generating product.
+
+    Remove or alter any copyright notices or claim authorship of the code.
+
+    Sublicense, sell, or lease the code.
+
+Permissions: Any use beyond viewing and studying the code requires prior explicit written permission from the author.
+For inquiries, contact: Telegram - @DmitrySemchenko.
+
+Disclaimer of Warranty: THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM,
+OUT OF THE USE OF THE SOFTWARE.
