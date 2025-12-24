@@ -19,16 +19,16 @@ set(Vulkan_LIBRARY "C:/VulkanSDK/1.4.335.0/Lib/vulkan-1.lib")
 find_package(Vulkan REQUIRED)
 
 add_executable(PulseEngine
-        main/main.cpp
-        main/main.h
-        core/app.cpp
-        core/app.h
-        core/time.cpp
-        core/time.h
-        core/main_loop.cpp
-        core/main_loop.h
-        core/logger.cpp
-        core/logger.h
+        main.cpp
+        main.h
+        EngineCore/app.cpp
+        EngineCore/app.h
+        EngineCore/time.cpp
+        EngineCore/time.h
+        EngineCore/main_loop.cpp
+        EngineCore/main_loop.h
+        EngineCore/logginer.cpp
+        EngineCore/logginer.h
 )
 
 target_link_libraries(PulseEngine

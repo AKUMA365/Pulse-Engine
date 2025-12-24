@@ -15,8 +15,8 @@ class app {
         void Stop();
         void Init();
         void shutdown();
-
     private:
+        bool m_IsRunning = false;
 };
 
 

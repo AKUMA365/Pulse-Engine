@@ -5,12 +5,5 @@
 // © 2025. All rights reserved.
 // Proprietary software. Academic evaluation only.
 
-#ifndef PULSEENGINE_MAIN_LOOP_H
-#define PULSEENGINE_MAIN_LOOP_H
+#include "main_loop.h"
 
-
-class main_loop {
-};
-
-
-#endif //PULSEENGINE_MAIN_LOOP_H

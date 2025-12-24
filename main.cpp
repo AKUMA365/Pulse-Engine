@@ -6,3 +6,14 @@
 // Proprietary software. Academic evaluation only.
 
 #include "main.h"
+#include "EngineCore/app.h"
+
+int main() {
+    app app;
+
+    app.Init();
+
+    app.Run();
+
+    return 0;
+}
