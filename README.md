@@ -3,7 +3,7 @@
 Deterministic C++ simulation engine designed for serious educational and research applications, with a focus on cardiac surgery simulations.
 
 ## Overview
-PulseSim Engine is a data-oriented, deterministic simulation engine that allows precise modeling of physiological systems.
+Pulse Engine is a data-oriented, deterministic simulation engine that allows precise modeling of physiological systems.
 Its primary goal is to provide a safe environment for studying and experimenting with simulation scenarios without risk to real subjects.
 
 ## Key Features
