@@ -7,7 +7,8 @@
 
 #ifndef PULSEENGINE_CORE_H
 #define PULSEENGINE_CORE_H
-
+#include <memory>
+#include "../log/logs.h"
 
 class app {
     public:
@@ -17,6 +18,7 @@ class app {
         void shutdown();
     private:
         bool m_IsRunning = false;
+        std::unique_ptr<Logs> m_Logs;
 };
 
 

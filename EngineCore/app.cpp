@@ -8,6 +8,9 @@
 
 #include "app.h"
 #include "logginer.h"
+#include  "../log/logs.h"
+#include <memory>
+#include "../system/SystemInfo.h"
 
 void app::Run() {
     while (m_IsRunning) {
@@ -17,4 +20,16 @@ void app::Run() {
 
 void app::Init() {
     Log::Init();
+
+    m_Logs = std::make_unique<Logs>();
+    m_Logs->PE_INFO("Logs Initialized");
+
+    SystemInfo SI;
+
+    m_Logs->PE_INFO("Detected system info");
+    SI.Detect();
+    auto data = SI.GetData();
+    SI.Print();
+
+
 }

@@ -12,7 +12,6 @@ int main() {
     app app;
 
     app.Init();
-
     app.Run();
 
     return 0;

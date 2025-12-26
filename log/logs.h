@@ -9,13 +9,14 @@
 #ifndef PULSEENGINE_LOGGING_H
 #define PULSEENGINE_LOGGING_H
 #include <string>
+#include <memory>
 
 class Logs {
     public:
-    void PE_INFO(std::string& text);
-    void PE_WARN(std::string& text);
-    void PE_ERROR(std::string& text);
-    void PE_DEBUG(std::string& text);
+    void PE_INFO(const std::string& text);
+    void PE_WARN(const std::string& text);
+    void PE_ERROR(const std::string& text);
+    void PE_DEBUG(const std::string& text);
     private:
 };
 

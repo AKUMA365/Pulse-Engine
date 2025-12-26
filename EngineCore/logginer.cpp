@@ -9,6 +9,7 @@
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/rotating_file_sink.h"
 #include "spdlog/sinks/basic_file_sink.h"
+#include  "spdlog/sinks/stdout_color_sinks-inl.h"
 
 std::shared_ptr<spdlog::logger> Log::s_CoreLogger;
 std::shared_ptr<spdlog::logger> Log::s_FileLogger;
@@ -16,18 +17,25 @@ std::shared_ptr<spdlog::logger> Log::s_FileLogger;
 void Log::Init()
 {
     try {
+        // First, we create a console logger to see errors if the file is not created.
+        auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
 
-        // Инициализация логгеров
-        s_CoreLogger = spdlog::basic_logger_mt("core", "log/core.txt");
-        s_FileLogger = spdlog::rotating_logger_mt("file", "log/file.txt", 1024 * 1024 * 5, 3);
+        // Creating file synchronizations
+        auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("log/core.txt", true);
 
-        spdlog::set_pattern("[%Y-%m-%d %H:%M:%S] [%l] %v");
-        spdlog::flush_on(spdlog::level::info);
+        // We combine them into one logger (optional) or create them separately
+        s_CoreLogger = std::make_shared<spdlog::logger>("Pulse engine", spdlog::sinks_init_list{console_sink, file_sink});
+
+        // Setting the level and pattern
+        s_CoreLogger->set_level(spdlog::level::trace);
+        s_CoreLogger->set_pattern("[%Y-%m-%d %H:%M:%S] [%n] [%l] %v");
+
+        // Register it so spdlog knows about it
+        spdlog::register_logger(s_CoreLogger);
 
     } catch (const spdlog::spdlog_ex& ex) {
-        fmt::print(stderr, "Log init failed: {}\n", ex.what());
+        fmt::print(stderr, "Critical Error: Log initialization failed: {}\n", ex.what());
     }
 }
-
 std::shared_ptr<spdlog::logger>& Log::GetCoreLogger() { return s_CoreLogger; }
 std::shared_ptr<spdlog::logger>& Log::GetFileLogger() { return s_FileLogger; }
