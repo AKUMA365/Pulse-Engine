@@ -10,6 +10,7 @@
 
 
 class time {
+public:
 
 };
 
