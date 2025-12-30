@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.26)
 project(PulseEngine LANGUAGES CXX)
 
+if(APPLE)
+    add_definitions(-DQ_OS_MAC)
+elseif(WIN32)
+    add_definitions(-DQ_OS_WIN)
+elseif(UNIX)
+    add_definitions(-DQ_OS_LINUX)
+endif()
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_TOOLCHAIN_FILE "C:/Users/semch/CLionProjects/PulseEngine/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
@@ -8,16 +16,25 @@ set(VCPKG_TARGET_TRIPLET "x64-windows" CACHE STRING "")
 set(Qt6_DIR "C:/Qt/6.10.1/mingw_64/lib/cmake/Qt6")
 
 # Libraries via vcpkg
-find_package(glm CONFIG REQUIRED)
-find_package(Eigen3 CONFIG REQUIRED)
-find_package(spdlog CONFIG REQUIRED)
-find_package(fmt CONFIG REQUIRED)
-find_package(EnTT CONFIG REQUIRED)
+find_package(glm REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(spdlog REQUIRED)
+find_package(fmt REQUIRED)
+find_package(EnTT REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 
 # Vulkan SDK manually
-set(Vulkan_INCLUDE_DIR "C:/VulkanSDK/1.4.335.0/Include")
-set(Vulkan_LIBRARY "C:/VulkanSDK/1.4.335.0/Lib/vulkan-1.lib")
+if(WIN32)
+    set(Vulkan_INCLUDE_DIR "C:/VulkanSDK/1.4.335.0/Include")
+    set(Vulkan_LIBRARY "C:/VulkanSDK/1.4.335.0/Lib/vulkan-1.lib")
+endif()
+
+if(APPLE)
+    set(ENV{VULKAN_SDK} "/opt/homebrew/opt/molten-vk")
+    set(Vulkan_INCLUDE_DIR "$ENV{VULKAN_SDK}/include")
+    set(Vulkan_LIBRARY "$ENV{VULKAN_SDK}/lib/libMoltenVK.dylib")
+endif()
+
 find_package(Vulkan REQUIRED)
 
 add_executable(PulseEngine
@@ -35,6 +52,8 @@ add_executable(PulseEngine
         system/SystemInfo.h
         log/logs.cpp
         log/logs.h
+        main.cpp
+        main.cpp
 )
 
 target_link_libraries(PulseEngine
