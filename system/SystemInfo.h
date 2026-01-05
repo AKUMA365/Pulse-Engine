@@ -9,13 +9,16 @@
 #define PULSEENGINE_PLATFORM_H
 #include <memory>
 #include <string>
+#include <__filesystem/filesystem_error.h>
+
 #include "../log/logs.h"
+
+namespace fs = std::filesystem;
 
 struct SystemInfoData {
     std::string osName;
     std::string osVersion;
     std::string Architecture;
-    bool Is64BitSystem;
 
     int cpuCores;
     std::string cpuName;
@@ -42,6 +45,7 @@ public:
     //Platform & OS
     static std::string GetPlatform();
     static std::string GetOSVersion();
+    static std::string GetArchitecture();
 
     //hardware
     static uint64_t GetTotalRAM();
@@ -57,12 +61,12 @@ public:
     static uint64_t GetHighResCounter();
 
     //check path
-    static std::string GetCachePath();
-    static std::string GetTempPath();
-    static std::string GetHomePath();
-    static std::string GetExecutablePath();
-    static std::string GetSavePath();
-    static std::string GetConfigPath();
+    static fs::path GetCachePath();
+    static fs::path GetTempPath();
+    static fs::path GetHomePath();
+    static fs::path GetExecutablePath();
+    static fs::path GetSavePath();
+    static fs::path GetConfigPath();
 
     //Write access
     static bool HasWriteAccess(const std::string& path);

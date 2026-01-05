@@ -23,18 +23,6 @@ find_package(fmt REQUIRED)
 find_package(EnTT REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 
-# Vulkan SDK manually
-if(WIN32)
-    set(Vulkan_INCLUDE_DIR "C:/VulkanSDK/1.4.335.0/Include")
-    set(Vulkan_LIBRARY "C:/VulkanSDK/1.4.335.0/Lib/vulkan-1.lib")
-endif()
-
-if(APPLE)
-    set(ENV{VULKAN_SDK} "/opt/homebrew/opt/molten-vk")
-    set(Vulkan_INCLUDE_DIR "$ENV{VULKAN_SDK}/include")
-    set(Vulkan_LIBRARY "$ENV{VULKAN_SDK}/lib/libMoltenVK.dylib")
-endif()
-
 find_package(Vulkan REQUIRED)
 
 add_executable(PulseEngine
@@ -54,7 +42,18 @@ add_executable(PulseEngine
         log/logs.h
         main.cpp
         main.cpp
+        3DScene/scene.cpp
+        3DScene/scene.h
 )
+
+if(APPLE)
+    set(MOLTENVK_INCLUDE_DIR "/opt/homebrew/opt/molten-vk/include")
+    set(MOLTENVK_LIBRARY "/opt/homebrew/opt/molten-vk/lib/libMoltenVK.dylib")
+
+    include_directories(${MOLTENVK_INCLUDE_DIR})
+    target_link_libraries(PulseEngine PRIVATE ${MOLTENVK_LIBRARY})
+endif()
+
 
 target_link_libraries(PulseEngine
         PRIVATE
@@ -68,7 +67,6 @@ target_link_libraries(PulseEngine
         Qt6::Gui
         Qt6::Widgets
 )
-
 if(WIN32)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different

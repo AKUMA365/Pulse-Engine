@@ -58,6 +58,17 @@ std::string SystemInfo::GetOSVersion() {
     return QSysInfo::productVersion().toStdString();
 }
 
+std::string SystemInfo::GetArchitecture()
+{
+    std::string arch;
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+    arch = "x86";
+#elif defined(__arm64__) || defined(__aarch64__) || defined(_M_ARM64)
+    arch = "arm64";
+#endif
+return arch;
+}
+
 uint64_t SystemInfo::GetCPUcore() {
     return static_cast<uint64_t>(QThread::idealThreadCount());
 }
@@ -103,9 +114,11 @@ std::string SystemInfo::GetSupport() {
     #endif
     sse = (cpui[3] & (1 << 25)) != 0;
     avx = (cpui[2] & (1 << 28)) != 0;
+    if(sse && avx) return sse,avx;
+    if(sse)        return sse;
+    if(avx)        return avx;
+
 #elif defined(__arm64__) || defined(__aarch64__) || defined(_M_ARM64)
-    // На ARM (Apple Silicon) SSE/AVX нет, там NEON.
-    // Можно считать, что базовые SIMD всегда есть.
     return "ARM NEON support (Apple Silicon)";
 #endif
 
@@ -113,6 +126,43 @@ std::string SystemInfo::GetSupport() {
     if(sse)        return "sse support enabled";
     if(avx)        return "avx support enabled";
     return "No x86 SIMD support (or non-x86)";
+}
+
+fs::path SystemInfo::GetHomePath()
+{
+    fs::path home;
+
+#ifdef _WIN32
+    home = fs::path(std::getenv("USERPROFILE")); // Windows
+#else
+    home = fs::path(std::getenv("HOME"));        // Linux / macOS
+#endif
+
+    return home;
+}
+
+fs::path SystemInfo::GetTempPath()
+{
+    fs::path tempPath = fs::temp_directory_path();
+
+    return tempPath;
+}
+
+fs::path SystemInfo::GetConfigPath()
+{
+    fs::path configPath = GetConfigPath().append("config");
+
+
+}
+
+void SystemInfo::Platform()
+{
+    m_Data.osName = GetPlatform();
+    m_Data.osVersion = GetOSVersion();
+    m_Data.Architecture = GetArchitecture();
+    m_Data.homePath = GetHomePath();
+    m_Data.tempPath = GetTempPath();
+
 }
 
 void SystemInfo::Detect() {
@@ -141,6 +191,9 @@ void SystemInfo::Print() {
     m_Logs->PE_INFO("OS: " + m_Data.osName + " " + m_Data.osVersion);
     m_Logs->PE_INFO("CPU Cores: " + std::to_string(m_Data.cpuCores));
     m_Logs->PE_INFO(GetSupport());
+    m_Logs->PE_INFO(m_Data.homePath);
+    m_Logs->PE_INFO(m_Data.tempPath);
+    m_Logs->PE_INFO("Architecture: " + m_Data.Architecture);
 
     double ramGB = static_cast<double>(m_Data.totalRAM) / (1024.0 * 1024.0 * 1024.0);
     m_Logs->PE_INFO(fmt::format("RAM: {:.2f} GB", ramGB));

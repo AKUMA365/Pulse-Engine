@@ -10,6 +10,8 @@
 #include "logginer.h"
 #include  "../log/logs.h"
 #include <memory>
+
+#include "../3DScene/scene.h"
 #include "../system/SystemInfo.h"
 
 void app::Run() {
@@ -26,10 +28,14 @@ void app::Init() {
 
     SystemInfo SI;
 
-    m_Logs->PE_INFO("Detected system info");
+    SI.Platform();
+    m_Logs->PE_INFO("Platform system info");
     SI.Detect();
+    m_Logs->PE_INFO("Detected system info");
     auto data = SI.GetData();
+
     SI.Print();
 
-
+    Scene::CreateInstance("PulseEngine", VK_MAKE_VERSION(1, 0, 0));
+    m_Logs->PE_INFO("Created instance of PulseEngine");
 }

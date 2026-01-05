@@ -6,13 +6,19 @@
 // Proprietary software. Academic evaluation only.
 
 #include "main.h"
+
+#include <spdlog/fmt/fmt.h>
+
 #include "EngineCore/app.h"
+#include "3DScene/scene.h"
 
 int main() {
     app app;
 
     app.Init();
     app.Run();
+
+    Scene scene;
 
     return 0;
 }
