@@ -40,10 +40,12 @@ add_executable(PulseEngine
         system/SystemInfo.h
         log/logs.cpp
         log/logs.h
-        main.cpp
-        main.cpp
         3DScene/scene.cpp
         3DScene/scene.h
+        3DScene/entity.cpp
+        3DScene/entity.h
+        3DScene/render.cpp
+        3DScene/render.h
 )
 
 if(APPLE)

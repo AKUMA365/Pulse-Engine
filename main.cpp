@@ -12,7 +12,7 @@
 #include "EngineCore/app.h"
 #include "3DScene/scene.h"
 
-int main() {
+int main(int argc, char** argv) {
     app app;
 
     app.Init();

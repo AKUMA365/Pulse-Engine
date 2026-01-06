@@ -10,6 +10,8 @@
 #include "logginer.h"
 #include  "../log/logs.h"
 #include <memory>
+#include <QVulkanInstance>
+#include <QVulkanWindow>
 
 #include "../3DScene/scene.h"
 #include "../system/SystemInfo.h"
@@ -36,6 +38,9 @@ void app::Init() {
 
     SI.Print();
 
+    Scene::ExtensionCount();
+
     Scene::CreateInstance("PulseEngine", VK_MAKE_VERSION(1, 0, 0));
     m_Logs->PE_INFO("Created instance of PulseEngine");
+
 }
