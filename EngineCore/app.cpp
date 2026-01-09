@@ -11,8 +11,9 @@
 #include  "../log/logs.h"
 #include <memory>
 #include <QVulkanInstance>
-#include <QVulkanWindow>
+#include <QGuiApplication>
 
+#include "../3DScene/render.h"
 #include "../3DScene/scene.h"
 #include "../system/SystemInfo.h"
 
@@ -22,7 +23,7 @@ void app::Run() {
     }
 }
 
-void app::Init() {
+void app::Init(int argc, char** argv) {
     Log::Init();
 
     m_Logs = std::make_unique<Logs>();
@@ -38,9 +39,6 @@ void app::Init() {
 
     SI.Print();
 
-    Scene::ExtensionCount();
-
-    Scene::CreateInstance("PulseEngine", VK_MAKE_VERSION(1, 0, 0));
-    m_Logs->PE_INFO("Created instance of PulseEngine");
-
+    //Scene::CreateInstance("PulseEngine", VK_MAKE_VERSION(1, 0, 0));
+    //m_Logs->PE_INFO("Created instance of PulseEngine");
 }

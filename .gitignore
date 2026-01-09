@@ -1,2 +1,3 @@
 vcpkg/
 .idea/
+cmake-build-debug/

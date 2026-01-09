@@ -14,7 +14,7 @@ class app {
     public:
         void Run();
         void Stop();
-        void Init();
+        void Init(int argc, char** argv);
         void shutdown();
     private:
         bool m_IsRunning = false;
