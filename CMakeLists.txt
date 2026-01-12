@@ -26,6 +26,9 @@ add_executable(PulseEngine
         3DScene/render.cpp
 )
 
+file(COPY ${CMAKE_SOURCE_DIR}/3DScene/basic.vert.spv DESTINATION ${CMAKE_BINARY_DIR})
+file(COPY ${CMAKE_SOURCE_DIR}/3DScene/basic.frag.spv DESTINATION ${CMAKE_BINARY_DIR})
+
 target_link_libraries(PulseEngine
         PRIVATE
         glm::glm

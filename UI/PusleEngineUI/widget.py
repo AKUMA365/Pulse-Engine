@@ -1,9 +1,7 @@
 import sys
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QTreeWidget, QTreeWidgetItem, QLabel, QPushButton, QLineEdit,
-    QSplitter, QTabWidget, QToolBar, QMenuBar, QMenu, QSpinBox,
-    QFrame, QListWidget, QScrollArea, QGroupBox, QGridLayout, QMessageBox
+    QTreeWidget,  QLabel, QSplitter,  QGroupBox, QMessageBox
 )
 from PySide6.QtCore import Qt, QSize, Slot
 from PySide6.QtGui import QAction, QIcon, QFont, QPalette, QColor
