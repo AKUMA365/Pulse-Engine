@@ -75,7 +75,7 @@ class PulseEngineMainWindow(QMainWindow):
         # Scene View placeholder
         scene_widget = QWidget()
         scene_layout = QVBoxLayout(scene_widget)
-        scene_label = QLabel("Scene View Placeholder\n(3D viewport goes here)")
+        scene_label = QLabel("Scene View Placeholder")
         scene_label.setAlignment(Qt.AlignCenter)
         scene_layout.addWidget(scene_label)
         center_splitter.addWidget(scene_widget)

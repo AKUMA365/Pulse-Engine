@@ -4,12 +4,10 @@
 
 #include "SystemInfo.h"
 
-#include <QSysInfo>
 #include <QThread>
 #include "../log/logs.h"
 #include <fmt/format.h>
 #include <filesystem>
-#include <vector>
 #include <fstream>
 #include <array>
 

@@ -4,14 +4,19 @@ project(PulseEngine LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(APPLE)
+    if(EXISTS "/opt/homebrew")
+        list(APPEND CMAKE_PREFIX_PATH "/opt/homebrew")
+    endif()
+endif()
+
 find_package(glm REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)
 find_package(EnTT REQUIRED)
-
 find_package(Qt6 REQUIRED COMPONENTS Core Gui)
-find_package(Vulkan REQUIRED)
+find_package(SFML 3 REQUIRED COMPONENTS Graphics Window System)
 
 add_executable(PulseEngine
         main.cpp
@@ -21,13 +26,9 @@ add_executable(PulseEngine
         EngineCore/logginer.cpp
         system/SystemInfo.cpp
         log/logs.cpp
-        3DScene/scene.cpp
-        3DScene/entity.cpp
-        3DScene/render.cpp
+        scene/scene.cpp
+        scene/scene.h
 )
-
-file(COPY ${CMAKE_SOURCE_DIR}/3DScene/basic.vert.spv DESTINATION ${CMAKE_BINARY_DIR})
-file(COPY ${CMAKE_SOURCE_DIR}/3DScene/basic.frag.spv DESTINATION ${CMAKE_BINARY_DIR})
 
 target_link_libraries(PulseEngine
         PRIVATE
@@ -36,9 +37,11 @@ target_link_libraries(PulseEngine
         spdlog::spdlog
         fmt::fmt
         EnTT::EnTT
-        Vulkan::Vulkan
         Qt6::Core
         Qt6::Gui
+        SFML::Graphics
+        SFML::Window
+        SFML::System
 )
 
 if(WIN32)
