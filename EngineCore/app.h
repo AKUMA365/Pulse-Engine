@@ -8,6 +8,10 @@
 #ifndef PULSEENGINE_CORE_H
 #define PULSEENGINE_CORE_H
 #include <memory>
+#include <SFML/Graphics.hpp>
+#include <optional>
+
+#include "../scene/scene.h"
 #include "../log/logs.h"
 
 class app {
@@ -19,6 +23,10 @@ class app {
     private:
         bool m_IsRunning = false;
         std::unique_ptr<Logs> m_Logs;
+
+        std::optional<sf::RenderWindow> m_Window;
+
+        scene m_Scene;
 };
 
 

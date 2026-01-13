@@ -8,14 +8,13 @@
 #include "main.h"
 
 #include "EngineCore/app.h"
-#include "scene/scene.h"
 
 int main(int argc, char** argv) {
-    app ap;
+    app PulseEngine;
 
-    ap.Init(argc, argv);
+    PulseEngine.Init(argc, argv);
 
-    
+    PulseEngine.Run();
 
     return 0;
 }
