@@ -8,6 +8,9 @@
 #include "main.h"
 
 #include "EngineCore/app.h"
+#include "UI/mainwindow.h"
+
+#include <QApplication>
 
 int main(int argc, char** argv) {
     app PulseEngine;
@@ -15,6 +18,11 @@ int main(int argc, char** argv) {
     PulseEngine.Init(argc, argv);
 
     PulseEngine.Run();
+
+    QApplication app(argc, argv);
+
+    PulseEngineMainWindow window;
+    window.show();
 
     return 0;
 }

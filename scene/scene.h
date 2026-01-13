@@ -11,13 +11,12 @@
 class scene
 {
 public:
+    scene();
     void init();
     void render(sf::RenderWindow& window);
 private:
     sf::Texture m_texture;
     sf::Sprite m_sprite;
-    sf::Font m_font;
-    sf::Text m_text;
 };
 
 

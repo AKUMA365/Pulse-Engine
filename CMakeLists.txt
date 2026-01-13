@@ -4,6 +4,10 @@ project(PulseEngine LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
+
 if(APPLE)
     if(EXISTS "/opt/homebrew")
         list(APPEND CMAKE_PREFIX_PATH "/opt/homebrew")
@@ -15,11 +19,16 @@ find_package(Eigen3 REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(fmt REQUIRED)
 find_package(EnTT REQUIRED)
-find_package(Qt6 REQUIRED COMPONENTS Core Gui)
+
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 find_package(SFML 3 REQUIRED COMPONENTS Graphics Window System)
 
 add_executable(PulseEngine
         main.cpp
+
+        UI/mainwindow.cpp
+        UI/mainwindow.h
+
         EngineCore/app.cpp
         EngineCore/time.cpp
         EngineCore/main_loop.cpp
@@ -30,6 +39,8 @@ add_executable(PulseEngine
         scene/scene.h
 )
 
+target_include_directories(PulseEngine PRIVATE UI)
+
 target_link_libraries(PulseEngine
         PRIVATE
         glm::glm
@@ -39,6 +50,7 @@ target_link_libraries(PulseEngine
         EnTT::EnTT
         Qt6::Core
         Qt6::Gui
+        Qt6::Widgets
         SFML::Graphics
         SFML::Window
         SFML::System

@@ -23,7 +23,7 @@ void app::Init(int argc, char** argv) {
     auto data = SI.GetData();
     SI.Print();
 
-    m_Window.emplace(sf::VideoMode({1280, 720}), "Pulse Engine");
+    m_Window.emplace(sf::VideoMode({600, 300}), "Pulse Engine");
 
     m_Window->setFramerateLimit(60);
     m_Logs->PE_INFO("Window Created");
@@ -43,7 +43,7 @@ void app::Run() {
             }
         }
 
-        m_Window->clear(sf::Color::Black);
+        m_Window->clear(sf::Color::Magenta);
 
         m_Scene.render(*m_Window);
 
