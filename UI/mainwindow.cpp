@@ -3,6 +3,7 @@
 //
 
 #include "mainwindow.h"
+#include "SFMLWidget.h"
 
 PulseEngineMainWindow::PulseEngineMainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -77,13 +78,16 @@ QSplitter* PulseEngineMainWindow::create_center_panel()
 {
     QSplitter *center_splitter = new QSplitter(Qt::Vertical);
 
-    // Scene View placeholder
-    QWidget *scene_widget = new QWidget();
-    QVBoxLayout *scene_layout = new QVBoxLayout(scene_widget);
-    QLabel *scene_label = new QLabel("Scene View Placeholder");
-    scene_label->setAlignment(Qt::AlignCenter);
-    scene_layout->addWidget(scene_label);
-    center_splitter->addWidget(scene_widget);
+    // Scene View
+    QWidget *scene_container = new QWidget();
+    QVBoxLayout *scene_layout = new QVBoxLayout(scene_container);
+    scene_layout->setContentsMargins(0,0,0,0); // Убираем отступы
+
+    // ВМЕСТО QLabel создаем наш SFMLWidget
+    SFMLWidget *sfml_view = new SFMLWidget();
+    scene_layout->addWidget(sfml_view);
+
+    center_splitter->addWidget(scene_container);
 
     // Explorer / Assets placeholder
     QWidget *explorer_widget = new QWidget();
@@ -246,16 +250,22 @@ QWidget* PulseEngineMainWindow::create_logo_widget()
     logo_layout->setContentsMargins(10, 5, 10, 5);
     logo_layout->setSpacing(10);
 
-    // #TODO: Replace with actual logo icon
-    QLabel *logo_label = new QLabel("#TODO");
+    QLabel *logo_label = new QLabel();
+    QPixmap logoPixmap("UI/resources/PulseEngineLogo.png");
+
+    if (logoPixmap.isNull()) {
+        logo_label->setText("Logo Not Found");
+    } else {
+
+        logo_label->setPixmap(logoPixmap.scaled(40, 40, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    }
+
     logo_label->setStyleSheet(R"(
-        color: #5ab9ff;
-        font-weight: bold;
-        font-size: 14px;
         background-color: #2a2d32;
         padding: 5px 10px;
         border-radius: 5px;
     )");
+    // -------------------
 
     QLabel *title_label = new QLabel("Pulse Engine");
     title_label->setStyleSheet(R"(
@@ -1210,3 +1220,4 @@ void PulseEngineMainWindow::on_explorer_display()
     /* #TODO: Display options */
     qDebug() << "Explorer -> Display clicked";
 }
+

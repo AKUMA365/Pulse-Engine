@@ -1,5 +1,0 @@
-[project]
-name = "PySide Project"
-
-[tool.pyside6-project]
-files = ["widget.py"]

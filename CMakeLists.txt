@@ -29,7 +29,6 @@ add_executable(PulseEngine
         UI/mainwindow.cpp
         UI/mainwindow.h
 
-        EngineCore/app.cpp
         EngineCore/time.cpp
         EngineCore/main_loop.cpp
         EngineCore/logginer.cpp
@@ -37,9 +36,12 @@ add_executable(PulseEngine
         log/logs.cpp
         scene/scene.cpp
         scene/scene.h
+        UI/SFMLWidget.cpp
+        UI/SFMLWidget.h
 )
 
 target_include_directories(PulseEngine PRIVATE UI)
+file(COPY UI/resources DESTINATION ${CMAKE_BINARY_DIR}/UI)
 
 target_link_libraries(PulseEngine
         PRIVATE

@@ -7,22 +7,27 @@
 
 #include "main.h"
 
-#include "EngineCore/app.h"
 #include "UI/mainwindow.h"
+#include "EngineCore/logginer.h"
+#include "log/logs.h"
+#include "system/SystemInfo.h"
 
 #include <QApplication>
 
 int main(int argc, char** argv) {
-    app PulseEngine;
+    Log::Init();
+    auto appLogs = std::make_unique<Logs>();
+    appLogs->PE_INFO("Logs Initialized (Qt Mode)");
 
-    PulseEngine.Init(argc, argv);
-
-    PulseEngine.Run();
+    SystemInfo SI;
+    SI.Platform();
+    SI.Detect();
+    SI.Print();
 
     QApplication app(argc, argv);
 
     PulseEngineMainWindow window;
     window.show();
 
-    return 0;
+    return app.exec();
 }
