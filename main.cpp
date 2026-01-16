@@ -15,6 +15,7 @@
 #include <QApplication>
 
 #include "EngineCore/main_loop.h"
+#include "UI/StartProject.h"
 
 int main(int argc, char** argv) {
     Log::Init();
@@ -37,7 +38,7 @@ int main(int argc, char** argv) {
 
 
 
-    PulseEngineMainWindow window;
+    StartProject window;
     window.show();
 
     int result = app.exec();

@@ -1,7 +1,3 @@
-// Pulse Engine
-// File: SystemInfo.cpp
-// © 2025. All rights reserved.
-
 #include "SystemInfo.h"
 
 #include <QThread>
@@ -11,6 +7,7 @@
 #include <fstream>
 #include <array>
 #include <QMessageBox>
+#include <cstdlib>
 
 #if defined(_WIN32)
     #include <windows.h>
@@ -75,7 +72,7 @@ std::string SystemInfo::GetArchitecture()
 #elif defined(__arm64__) || defined(__aarch64__) || defined(_M_ARM64)
     arch = "arm64";
 #endif
-return arch;
+    return arch;
 }
 
 uint64_t SystemInfo::GetCPUcore() {
@@ -123,10 +120,6 @@ std::string SystemInfo::GetSupport() {
     #endif
     sse = (cpui[3] & (1 << 25)) != 0;
     avx = (cpui[2] & (1 << 28)) != 0;
-    if(sse && avx) return sse,avx;
-    if(sse)        return sse;
-    if(avx)        return avx;
-
 #elif defined(__arm64__) || defined(__aarch64__) || defined(_M_ARM64)
     return "ARM NEON support (Apple Silicon)";
 #endif
@@ -134,27 +127,33 @@ std::string SystemInfo::GetSupport() {
     if(sse && avx) return "sse and avx support enabled";
     if(sse)        return "sse support enabled";
     if(avx)        return "avx support enabled";
+
     return "No x86 SIMD support (or non-x86)";
 }
 
 fs::path SystemInfo::GetHomePath()
 {
     fs::path home;
+    const char* env_p = nullptr;
 
 #ifdef _WIN32
-    home = fs::path(std::getenv("USERPROFILE")); // Windows
+    env_p = std::getenv("USERPROFILE");
 #else
-    home = fs::path(std::getenv("HOME"));        // Linux / macOS
+    env_p = std::getenv("HOME");
 #endif
+
+    if (env_p) {
+        home = fs::path(env_p);
+    } else {
+        home = fs::current_path();
+    }
 
     return home;
 }
 
 fs::path SystemInfo::GetTempPath()
 {
-    fs::path tempPath = fs::temp_directory_path();
-
-    return tempPath;
+    return fs::temp_directory_path();
 }
 
 fs::path SystemInfo::GetConfigPath()
@@ -163,15 +162,21 @@ fs::path SystemInfo::GetConfigPath()
 
     if (fs::exists(configPath) && !fs::is_directory(configPath))
     {
-        fmt::print("Error: {} exsists but is a file\n", configPath.string());
+        fmt::print("Error: {} exists but is a file\n", configPath.string());
         return {};
     }
 
     if (!fs::exists(configPath))
     {
-
+        try {
+            fs::create_directories(configPath);
+        } catch (const fs::filesystem_error& e) {
+            fmt::print("Error creating config dir: {}\n", e.what());
+            return {};
+        }
     }
 
+    return configPath;
 }
 
 fs::path SystemInfo::GetSavePath()
@@ -253,6 +258,8 @@ fs::path SystemInfo::GetPulsePath()
 }
 
 bool SystemInfo::HasWriteAccess(const std::string& path) {
+    if (path.empty()) return false;
+
     fs::path testPath = fs::path(path) / "pulse_permission_test";
     try {
         std::ofstream file(testPath);
@@ -269,21 +276,30 @@ bool SystemInfo::HasWriteAccess(const std::string& path) {
 
 void SystemInfo::Platform()
 {
+    if (!m_Logs) {
+        m_Logs = std::make_unique<Logs>();
+    }
+
     m_Data.osName = GetPlatform();
     m_Data.osVersion = GetOSVersion();
     m_Data.Architecture = GetArchitecture();
-    m_Data.Access = HasWriteAccess(GetHomePath());
+
+    // ПРЕОБРАЗОВАНИЕ В СТРОКУ ЗДЕСЬ (path -> string)
+    m_Data.homePath = GetHomePath().string();
+    m_Data.pulsePath = GetPulsePath().string();
+
+    m_Data.Access = HasWriteAccess(m_Data.homePath);
 
     if (m_Data.Access == false)
     {
-        m_Logs->PE_ERROR("Error write access");
+        m_Logs->PE_ERROR("Error write access to Home Directory: " + m_Data.homePath);
     }
 
-    m_Data.homePath = GetHomePath();
-    m_Data.tempPath = GetTempPath();
-    m_Data.savePath = GetSavePath();
-
-
+    // ПРЕОБРАЗОВАНИЕ В СТРОКУ ЗДЕСЬ
+    m_Data.tempPath = GetTempPath().string();
+    m_Data.savePath = GetSavePath().string();
+    m_Data.configPath = GetConfigPath().string();
+    m_Data.cachePath = GetCachePath().string();
 }
 
 void SystemInfo::Detect() {
@@ -308,16 +324,20 @@ void SystemInfo::Detect() {
 }
 
 void SystemInfo::Print() {
-    m_Logs = std::make_unique<Logs>();
+    if (!m_Logs) {
+        m_Logs = std::make_unique<Logs>();
+    }
+
     m_Logs->PE_INFO("OS: " + m_Data.osName + " " + m_Data.osVersion);
     m_Logs->PE_INFO("CPU Cores: " + std::to_string(m_Data.cpuCores));
     m_Logs->PE_INFO(GetSupport());
-    m_Logs->PE_INFO(m_Data.homePath);
-    m_Logs->PE_INFO(m_Data.pulsePath);
-    m_Logs->PE_INFO(m_Data.tempPath);
-    m_Logs->PE_INFO(m_Data.savePath);
-    m_Logs->PE_INFO(m_Data.cachePath);
-    m_Logs->PE_INFO(m_Data.configPath);
+
+    m_Logs->PE_INFO("Home Path: " + m_Data.homePath);
+    m_Logs->PE_INFO("Pulse Path: " + m_Data.pulsePath);
+    m_Logs->PE_INFO("Temp Path: " + m_Data.tempPath);
+    m_Logs->PE_INFO("Save Path: " + m_Data.savePath);
+    m_Logs->PE_INFO("Cache Path: " + m_Data.cachePath);
+    m_Logs->PE_INFO("Config Path: " + m_Data.configPath);
     m_Logs->PE_INFO("Architecture: " + m_Data.Architecture);
 
     double ramGB = static_cast<double>(m_Data.totalRAM) / (1024.0 * 1024.0 * 1024.0);

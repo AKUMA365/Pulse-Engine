@@ -40,6 +40,8 @@ add_executable(PulseEngine
         UI/SFMLWidget.h
         UI/StartProject.cpp
         UI/StartProject.h
+        UI/ProjectHistory.cpp
+        UI/ProjectHistory.h
 )
 
 target_include_directories(PulseEngine PRIVATE UI)
