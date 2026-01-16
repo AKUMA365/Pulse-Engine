@@ -7,11 +7,18 @@
 
 #ifndef PULSEENGINE_MAIN_LOOP_H
 #define PULSEENGINE_MAIN_LOOP_H
+#include <atomic>
+#include <cstdint>
 
 
 class main_loop {
     public:
-
+        void Run();
+        void stop() { m_IsRunning = false; }
+    private:
+        uint64_t Frequency;
+        uint64_t lastTime;
+        std::atomic<bool> m_IsRunning{true};
 };
 
 

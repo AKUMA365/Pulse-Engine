@@ -30,10 +30,13 @@ struct SystemInfoData {
 
     std::string configPath;
     std::string homePath;
+    std::string pulsePath;
     std::string tempPath;
     std::string executablePath;
     std::string cachePath;
     std::string savePath;
+
+    bool Access;
 };
 
 class SystemInfo {
@@ -65,6 +68,7 @@ public:
     static fs::path GetTempPath();
     static fs::path GetHomePath();
     static fs::path GetExecutablePath();
+    static fs::path GetPulsePath();
     static fs::path GetSavePath();
     static fs::path GetConfigPath();
 

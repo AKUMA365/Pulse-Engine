@@ -14,6 +14,8 @@
 
 #include <QApplication>
 
+#include "EngineCore/main_loop.h"
+
 int main(int argc, char** argv) {
     Log::Init();
     auto appLogs = std::make_unique<Logs>();
@@ -26,8 +28,26 @@ int main(int argc, char** argv) {
 
     QApplication app(argc, argv);
 
+    main_loop eLoop;
+
+    std::thread eThread([&eLoop]()
+    {
+        eLoop.Run();
+    });
+
+
+
     PulseEngineMainWindow window;
     window.show();
 
-    return app.exec();
+    int result = app.exec();
+
+    eLoop.stop();
+
+    if (eThread.joinable())
+    {
+        eThread.join();
+    }
+
+    return result;
 }

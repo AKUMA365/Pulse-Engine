@@ -7,3 +7,24 @@
 
 #include "main_loop.h"
 
+#include "../system/SystemInfo.h"
+
+void main_loop::Run()
+{
+    uint64_t Frequency = SystemInfo::GetHighResFrequency();
+    uint64_t lastTime = SystemInfo::GetHighResCounter();
+
+    while (m_IsRunning)
+    {
+        uint64_t currentTime = SystemInfo::GetHighResCounter();
+
+        uint64_t deltaTicks = currentTime - lastTime;
+
+        double deltaTime = static_cast<double>(deltaTicks) / static_cast<double>(Frequency);
+
+        lastTime = currentTime;
+
+    }
+
+}
+

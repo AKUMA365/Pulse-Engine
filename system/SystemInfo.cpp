@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <fstream>
 #include <array>
+#include <QMessageBox>
 
 #if defined(_WIN32)
     #include <windows.h>
@@ -28,6 +29,16 @@
 #endif
 
 namespace fs = std::filesystem;
+
+uint64_t SystemInfo::GetHighResFrequency()
+{
+    return 1000000000ULL;
+}
+
+uint64_t SystemInfo::GetHighResCounter()
+{
+    return std::chrono::high_resolution_clock::now().time_since_epoch().count();
+}
 
 uint64_t SystemInfo::GetTotalRAM() {
 #if defined(_WIN32)
@@ -148,9 +159,112 @@ fs::path SystemInfo::GetTempPath()
 
 fs::path SystemInfo::GetConfigPath()
 {
-    fs::path configPath = GetConfigPath().append("config");
+    fs::path configPath = SystemInfo::GetPulsePath() / "config";
 
+    if (fs::exists(configPath) && !fs::is_directory(configPath))
+    {
+        fmt::print("Error: {} exsists but is a file\n", configPath.string());
+        return {};
+    }
 
+    if (!fs::exists(configPath))
+    {
+
+    }
+
+}
+
+fs::path SystemInfo::GetSavePath()
+{
+    fs::path savePath = SystemInfo::GetPulsePath() / "project";
+
+    if (fs::exists(savePath) && !fs::is_directory(savePath))
+    {
+        fmt::print("Error: {} exists but is a file!\n", savePath.string());
+        return {};
+    }
+
+    if (!fs::exists(savePath))
+    {
+        try
+        {
+            fs::create_directories(savePath);
+        }
+        catch (const fs::filesystem_error& e)
+        {
+            fmt::print("Error: {}\n", e.what());
+            return {};
+        }
+    }
+
+    return savePath;
+}
+
+fs::path SystemInfo::GetCachePath()
+{
+    fs::path cachePath = SystemInfo::GetPulsePath() / "cache";
+
+    if (fs::exists(cachePath) && !fs::is_directory(cachePath))
+    {
+        fmt::print("Error: {} exists but is a file!\n", cachePath.string());
+        return {};
+    }
+
+    if (!fs::exists(cachePath))
+    {
+        try
+        {
+            fs::create_directories(cachePath);
+        }
+        catch (const fs::filesystem_error& e)
+        {
+            fmt::print("Error: {}\n", e.what());
+            return {};
+        }
+    }
+
+    return cachePath;
+}
+
+fs::path SystemInfo::GetPulsePath()
+{
+    fs::path pulsePath = SystemInfo::GetHomePath() / "pulse";
+
+    if (fs::exists(pulsePath) && !fs::is_directory(pulsePath))
+    {
+        fmt::print("Error: {} exists but is a file!\n", pulsePath.string());
+        return {};
+    }
+
+    if (!fs::exists(pulsePath))
+    {
+        try
+        {
+            fs::create_directories(pulsePath);
+        }
+        catch (const fs::filesystem_error& e)
+        {
+            fmt::print("Error: {}\n", e.what());
+            return {};
+        }
+    }
+
+    return pulsePath;
+}
+
+bool SystemInfo::HasWriteAccess(const std::string& path) {
+    fs::path testPath = fs::path(path) / "pulse_permission_test";
+    try {
+        std::ofstream file(testPath);
+        if (file.is_open()) {
+            file.close();
+            fs::remove(testPath);
+            return true;
+        }
+    } catch (...) {
+        return false;
+    }
+    return false;
 }
 
 void SystemInfo::Platform()
@@ -158,8 +272,17 @@ void SystemInfo::Platform()
     m_Data.osName = GetPlatform();
     m_Data.osVersion = GetOSVersion();
     m_Data.Architecture = GetArchitecture();
+    m_Data.Access = HasWriteAccess(GetHomePath());
+
+    if (m_Data.Access == false)
+    {
+        m_Logs->PE_ERROR("Error write access");
+    }
+
     m_Data.homePath = GetHomePath();
     m_Data.tempPath = GetTempPath();
+    m_Data.savePath = GetSavePath();
+
 
 }
 
@@ -190,7 +313,11 @@ void SystemInfo::Print() {
     m_Logs->PE_INFO("CPU Cores: " + std::to_string(m_Data.cpuCores));
     m_Logs->PE_INFO(GetSupport());
     m_Logs->PE_INFO(m_Data.homePath);
+    m_Logs->PE_INFO(m_Data.pulsePath);
     m_Logs->PE_INFO(m_Data.tempPath);
+    m_Logs->PE_INFO(m_Data.savePath);
+    m_Logs->PE_INFO(m_Data.cachePath);
+    m_Logs->PE_INFO(m_Data.configPath);
     m_Logs->PE_INFO("Architecture: " + m_Data.Architecture);
 
     double ramGB = static_cast<double>(m_Data.totalRAM) / (1024.0 * 1024.0 * 1024.0);
