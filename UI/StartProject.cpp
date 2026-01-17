@@ -2,13 +2,14 @@
 #include <QHeaderView>
 #include <QMessageBox>
 
+#include "mainwindow.h"
 #include "ProjectHistory.h"
 
 StartProject::StartProject(QWidget *parent) : QDialog(parent)
 {
     setWindowTitle("Pulse Engine - Project Browser");
     resize(1100, 700);
-    
+
     setupUi();
     setupStyles();
     loadTemplates();
@@ -39,7 +40,7 @@ void StartProject::setupUi()
     m_sidebarList = new QListWidget(this);
     m_sidebarList->addItem("Recent Projects");
     m_sidebarList->addItem("New Project");
-    m_sidebarList->setCurrentRow(1); 
+    m_sidebarList->setCurrentRow(1);
     sidebarLayout->addWidget(m_sidebarList);
 
     // Sidebar Footer
@@ -47,22 +48,24 @@ void StartProject::setupUi()
     versionLabel->setAlignment(Qt::AlignCenter);
     versionLabel->setObjectName("VersionLabel");
     sidebarLayout->addWidget(versionLabel);
-    
+
     mainLayout->addWidget(sidebarContainer);
 
     // Content Area
     m_pagesStack = new QStackedWidget(this);
-    
+
     // PAGE 1: Recent Projects
     QWidget* recentPage = new QWidget();
     QVBoxLayout* recentLayout = new QVBoxLayout(recentPage);
     recentLayout->setContentsMargins(30, 30, 30, 30);
-    
+
     QLabel* recentTitle = new QLabel("Recent Projects", recentPage);
     recentTitle->setObjectName("PageTitle");
     recentLayout->addWidget(recentTitle);
 
     m_recentList = new QListWidget(recentPage);
+    // Включаем перенос слов, чтобы длинные пути не обрезались жестко
+    m_recentList->setWordWrap(true);
     recentLayout->addWidget(m_recentList);
 
     QHBoxLayout* recentBtnLayout = new QHBoxLayout();
@@ -85,42 +88,42 @@ void StartProject::setupUi()
     newLayout->addWidget(newTitle);
 
     QSplitter* templateSplitter = new QSplitter(Qt::Horizontal, newPage);
-    
+
     // Template List (Grid)
     m_templateList = new QListWidget(templateSplitter);
     m_templateList->setViewMode(QListWidget::IconMode);
     m_templateList->setIconSize(QSize(128, 128));
     m_templateList->setSpacing(15);
     m_templateList->setResizeMode(QListWidget::Adjust);
-    
+
     // Template Details
     QWidget* detailsWidget = new QWidget(templateSplitter);
     QVBoxLayout* detailsLayout = new QVBoxLayout(detailsWidget);
-    
+
     m_templatePreview = new QLabel("Preview", detailsWidget);
     m_templatePreview->setFixedSize(250, 150);
     m_templatePreview->setAlignment(Qt::AlignCenter);
     m_templatePreview->setStyleSheet("background-color: #151515; border: 1px solid #333; color: #555;");
-    
+
     m_templateDesc = new QLabel("Description goes here...", detailsWidget);
     m_templateDesc->setWordWrap(true);
     m_templateDesc->setAlignment(Qt::AlignTop);
-    
+
     detailsLayout->addWidget(m_templatePreview);
     detailsLayout->addWidget(m_templateDesc);
     detailsLayout->addStretch();
-    
+
     templateSplitter->addWidget(m_templateList);
     templateSplitter->addWidget(detailsWidget);
     templateSplitter->setStretchFactor(0, 2);
     templateSplitter->setStretchFactor(1, 1);
-    
+
     newLayout->addWidget(templateSplitter);
 
     // Project Settings Form
     QGroupBox* settingsGroup = new QGroupBox("Project Settings", newPage);
     QGridLayout* settingsGrid = new QGridLayout(settingsGroup);
-    
+
     settingsGrid->addWidget(new QLabel("Name:"), 0, 0);
     m_nameEdit = new QLineEdit("MyNewProject", settingsGroup);
     settingsGrid->addWidget(m_nameEdit, 0, 1);
@@ -140,7 +143,7 @@ void StartProject::setupUi()
     QHBoxLayout* footerLayout = new QHBoxLayout();
     QPushButton* cancelBtn = new QPushButton("Cancel", newPage);
     cancelBtn->setFixedSize(120, 40);
-    
+
     m_createBtn = new QPushButton("Create Project", newPage);
     m_createBtn->setFixedSize(160, 40);
     m_createBtn->setObjectName("PrimaryBtn");
@@ -148,7 +151,7 @@ void StartProject::setupUi()
     footerLayout->addStretch();
     footerLayout->addWidget(cancelBtn);
     footerLayout->addWidget(m_createBtn);
-    
+
     newLayout->addLayout(footerLayout);
     m_pagesStack->addWidget(newPage);
 
@@ -166,39 +169,162 @@ void StartProject::setupUi()
 void StartProject::setupStyles()
 {
     setStyleSheet(R"(
-        QDialog { background-color: #1e2126; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; }
-        
-        /* Sidebar */
-        #Sidebar { background-color: #15171b; }
-        #LogoLabel { color: #42a5f5; font-size: 18px; font-weight: bold; border-bottom: 1px solid #2a2d32; }
-        #VersionLabel { color: #666; padding: 10px; font-size: 11px; }
-        
-        QListWidget { background-color: transparent; border: none; outline: none; }
-        QListWidget::item { padding: 12px 20px; color: #b0b0b0; border-left: 3px solid transparent; }
-        QListWidget::item:selected { background-color: #25282d; color: #fff; border-left: 3px solid #42a5f5; }
-        QListWidget::item:hover { background-color: #1e2126; }
-        
-        /* Content */
-        #PageTitle { font-size: 24px; color: #fff; margin-bottom: 15px; }
-        
-        QLineEdit { background-color: #111; border: 1px solid #333; border-radius: 4px; padding: 8px; color: #fff; }
-        QLineEdit:focus { border: 1px solid #42a5f5; }
-        
-        QGroupBox { border: 1px solid #333; border-radius: 6px; margin-top: 20px; padding-top: 15px; font-weight: bold; }
-        QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 5px; color: #b0b0b0; }
-        
-        /* Buttons */
-        QPushButton { background-color: #333; border: none; border-radius: 4px; padding: 8px; color: #fff; }
-        QPushButton:hover { background-color: #444; }
-        QPushButton:pressed { background-color: #222; }
-        
-        #PrimaryBtn { background-color: #42a5f5; color: #fff; font-weight: bold; }
-        #PrimaryBtn:hover { background-color: #64b5f6; }
-        #ActionBtn { background-color: #42a5f5; font-weight: bold; }
+        QDialog {
+            background-color: #050505;
+            color: #ffffff;
+            font-family: 'Segoe UI', 'Roboto', sans-serif;
+        }
+
+        #Sidebar {
+            background-color: #0a0a0a;
+            border-right: 1px solid #222;
+        }
+
+        #LogoLabel {
+            color: #ffffff;
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: 1px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #222;
+        }
+
+        #VersionLabel {
+            color: #444;
+            font-family: 'Consolas', monospace;
+            font-size: 10px;
+            letter-spacing: 2px;
+        }
+
+        QListWidget {
+            background-color: transparent;
+            border: none;
+            outline: none;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        QListWidget::item {
+            padding: 15px 25px;
+            color: #666;
+            border-left: 2px solid transparent;
+            margin-bottom: 2px;
+        }
+        QListWidget::item:hover {
+            color: #bbb;
+            background-color: #111;
+        }
+        QListWidget::item:selected {
+            background-color: #0f1212;
+            color: #4cd6c0;
+            border-left: 2px solid #4cd6c0;
+        }
+
+        #PageTitle {
+            font-size: 28px;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        QListWidget#m_recentList, QListWidget#m_templateList {
+            background-color: #080808;
+            border: 1px solid #222;
+            border-radius: 4px;
+        }
+
+        QLineEdit {
+            background-color: #080808;
+            border: 1px solid #333;
+            border-radius: 2px;
+            padding: 10px;
+            color: #fff;
+            font-family: 'Consolas', monospace;
+        }
+        QLineEdit:focus {
+            border: 1px solid #4cd6c0;
+            background-color: #0c0c0c;
+        }
+
+        QGroupBox {
+            border: 1px solid #222;
+            border-radius: 4px;
+            margin-top: 25px;
+            padding-top: 20px;
+            font-weight: bold;
+            color: #888;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            left: 10px;
+            padding: 0 5px;
+            color: #4cd6c0;
+            background-color: #050505;
+        }
+
+        QPushButton {
+            background-color: transparent;
+            border: 1px solid #333;
+            border-radius: 2px;
+            padding: 8px 16px;
+            color: #aaa;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+        QPushButton:hover {
+            border-color: #666;
+            color: #fff;
+            background-color: #111;
+        }
+        QPushButton:pressed {
+            background-color: #222;
+        }
+
+        #PrimaryBtn {
+            background-color: #4cd6c0;
+            color: #000000;
+            border: none;
+            font-weight: 800;
+        }
+        #PrimaryBtn:hover {
+            background-color: #64ffda;
+            color: #000000;
+        }
+        #PrimaryBtn:pressed {
+            background-color: #3cb09f;
+        }
+
+        #ActionBtn {
+            background-color: rgba(76, 214, 192, 0.1);
+            color: #4cd6c0;
+            border: 1px solid #4cd6c0;
+        }
+        #ActionBtn:hover {
+            background-color: #4cd6c0;
+            color: #000;
+        }
+
+        QScrollBar:vertical {
+            border: none;
+            background: #0a0a0a;
+            width: 8px;
+            margin: 0px;
+        }
+        QScrollBar::handle:vertical {
+            background: #333;
+            min-height: 20px;
+            border-radius: 4px;
+        }
+        QScrollBar::handle:vertical:hover {
+            background: #555;
+        }
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+            height: 0px;
+        }
     )");
-    
-    // Sidebar specific style for larger text
-    m_sidebarList->setStyleSheet("font-size: 14px;");
 }
 
 void StartProject::loadTemplates()
@@ -231,14 +357,20 @@ void StartProject::loadRecentProjects()
     auto projects = ProjectHistory::GetProjects();
 
     for (const auto& meta : projects) {
-        QString text = QString::fromStdString(meta.name);
+        QString name = QString::fromStdString(meta.name);
         QString date = QString::fromStdString(meta.lastUpdate);
+        QString path = QString::fromStdString(meta.path.string());
+
+        QString displayText = QString("%1\n%2\nLast Modified: %3")
+                              .arg(name)
+                              .arg(path)
+                              .arg(date);
 
         QListWidgetItem* item = new QListWidgetItem();
-        item->setText(text + " (" + date + ")");
-        item->setToolTip(QString::fromStdString(meta.path.string()));
+        item->setText(displayText);
+        item->setToolTip(path);
 
-        item->setData(Qt::UserRole, QString::fromStdString(meta.path.string()));
+        item->setData(Qt::UserRole, path);
 
         m_recentList->addItem(item);
     }
@@ -254,13 +386,11 @@ void StartProject::onTemplateSelected(QListWidgetItem* item)
     if(!item) return;
     QString desc = item->data(Qt::UserRole).toString();
     m_templateDesc->setText(desc);
-    
-    // TODO: Update preview image based on template type
 }
 
 void StartProject::onBrowseClicked()
 {
-    QString dir = QFileDialog::getExistingDirectory(this, "Select Project Location", 
+    QString dir = QFileDialog::getExistingDirectory(this, "Select Project Location",
                                                     QDir::homePath(),
                                                     QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
     if (!dir.isEmpty()) {
@@ -272,26 +402,36 @@ void StartProject::onCreateClicked()
 {
     QString name = m_nameEdit->text();
     QString path = m_locationEdit->text();
-    
+
     if (name.isEmpty() || path.isEmpty()) {
         QMessageBox::warning(this, "Error", "Project name and location cannot be empty.");
         return;
     }
 
-    // TODO: Check if directory is valid and writable
-    // TODO: Check if project already exists at path
-    // TODO: Copy template files to new location
-    // TODO: Generate project configuration file (.pulse)
-    
-    accept(); // Close dialog with success result
+    PulseEngineMainWindow* editor = new PulseEngineMainWindow();
+
+    editor->show();
+
+    this->close();
+
+    std::filesystem::path fullPath = std::filesystem::path(path.toStdString()) / name.toStdString();
+    ProjectHistory::AddProject(name.toStdString(), fullPath);
+
+    accept();
 }
 
 void StartProject::onOpenClicked()
 {
     QListWidgetItem* current = m_recentList->currentItem();
     if (current) {
-        // TODO: Validate selected project path
-        // TODO: Load project context
+        QString path = current->data(Qt::UserRole).toString();
+
+        PulseEngineMainWindow* editor = new PulseEngineMainWindow();
+
+        editor->show();
+
+        this->close();
+
         accept();
     } else {
         // Fallback to file dialog
@@ -299,7 +439,8 @@ void StartProject::onOpenClicked()
                                                         QDir::homePath(),
                                                         "Pulse Projects (*.pulse *.pproject)");
         if (!fileName.isEmpty()) {
-            // TODO: Load project from file
+            std::filesystem::path p(fileName.toStdString());
+            ProjectHistory::AddProject(p.stem().string(), p.parent_path());
             accept();
         }
     }

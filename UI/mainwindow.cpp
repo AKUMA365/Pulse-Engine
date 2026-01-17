@@ -104,140 +104,164 @@ QSplitter* PulseEngineMainWindow::create_center_panel()
 
 void PulseEngineMainWindow::setup_dark_theme()
 {
-    /* Apply dark theme to the application */
     QPalette dark_palette;
-    dark_palette.setColor(QPalette::Window, QColor(30, 33, 38));
-    dark_palette.setColor(QPalette::WindowText, QColor(200, 200, 200));
-    dark_palette.setColor(QPalette::Base, QColor(25, 28, 32));
-    dark_palette.setColor(QPalette::AlternateBase, QColor(35, 38, 42));
-    dark_palette.setColor(QPalette::ToolTipBase, QColor(200, 200, 200));
-    dark_palette.setColor(QPalette::ToolTipText, QColor(200, 200, 200));
-    dark_palette.setColor(QPalette::Text, QColor(200, 200, 200));
-    dark_palette.setColor(QPalette::Button, QColor(40, 43, 48));
-    dark_palette.setColor(QPalette::ButtonText, QColor(200, 200, 200));
+    dark_palette.setColor(QPalette::Window, QColor(5, 5, 5));
+    dark_palette.setColor(QPalette::WindowText, QColor(255, 255, 255));
+    dark_palette.setColor(QPalette::Base, QColor(10, 10, 10));
+    dark_palette.setColor(QPalette::AlternateBase, QColor(15, 15, 15));
+    dark_palette.setColor(QPalette::ToolTipBase, QColor(255, 255, 255));
+    dark_palette.setColor(QPalette::ToolTipText, QColor(255, 255, 255));
+    dark_palette.setColor(QPalette::Text, QColor(220, 220, 220));
+    dark_palette.setColor(QPalette::Button, QColor(20, 20, 20));
+    dark_palette.setColor(QPalette::ButtonText, QColor(255, 255, 255));
     dark_palette.setColor(QPalette::BrightText, Qt::red);
-    dark_palette.setColor(QPalette::Link, QColor(42, 130, 218));
-    dark_palette.setColor(QPalette::Highlight, QColor(42, 130, 218));
+    dark_palette.setColor(QPalette::Link, QColor(76, 214, 192));
+    dark_palette.setColor(QPalette::Highlight, QColor(76, 214, 192));
     dark_palette.setColor(QPalette::HighlightedText, Qt::black);
 
     setPalette(dark_palette);
 
-    // Apply stylesheet for additional styling
     setStyleSheet(R"(
         QMainWindow {
-            background-color: #1e2126;
+            background-color: #050505;
+            font-family: 'Segoe UI', 'Roboto', sans-serif;
         }
         QTreeWidget {
-            background-color: #1a1d22;
-            border: none;
+            background-color: #0a0a0a;
+            border: 1px solid #222;
             padding: 5px;
+            font-size: 13px;
         }
         QTreeWidget::item {
-            padding: 3px;
-            color: #c8c8c8;
+            padding: 4px;
+            color: #888;
         }
         QTreeWidget::item:selected {
-            background-color: #3a4555;
+            background-color: #0f1212;
+            color: #4cd6c0;
+            border-left: 2px solid #4cd6c0;
         }
         QTreeWidget::item:hover {
-            background-color: #2a3340;
+            background-color: #111;
+            color: #ccc;
         }
         QLabel {
-            color: #c8c8c8;
+            color: #e0e0e0;
         }
         QPushButton {
-            background-color: #2a2d32;
-            border: 1px solid #3a3d42;
-            padding: 5px 10px;
-            border-radius: 3px;
-            color: #c8c8c8;
+            background-color: transparent;
+            border: 1px solid #333;
+            border-radius: 2px;
+            padding: 6px 12px;
+            color: #aaa;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
         }
         QPushButton:hover {
-            background-color: #3a3d42;
+            border-color: #666;
+            color: #fff;
+            background-color: #111;
         }
         QPushButton:pressed {
-            background-color: #4a4d52;
+            background-color: #222;
         }
         QLineEdit {
-            background-color: #1a1d22;
-            border: 1px solid #3a3d42;
-            padding: 5px;
-            border-radius: 3px;
-            color: #c8c8c8;
+            background-color: #080808;
+            border: 1px solid #333;
+            padding: 6px;
+            border-radius: 2px;
+            color: #fff;
+            font-family: 'Consolas', monospace;
+        }
+        QLineEdit:focus {
+            border: 1px solid #4cd6c0;
+            background-color: #0c0c0c;
         }
         QSpinBox {
-            background-color: #1a1d22;
-            border: 1px solid #3a3d42;
-            padding: 3px;
-            border-radius: 3px;
-            color: #c8c8c8;
+            background-color: #080808;
+            border: 1px solid #333;
+            padding: 4px;
+            border-radius: 2px;
+            color: #fff;
+        }
+        QSpinBox:focus {
+            border: 1px solid #4cd6c0;
         }
         QTabWidget::pane {
-            border: 1px solid #3a3d42;
-            background-color: #1a1d22;
+            border: 1px solid #222;
+            background-color: #0a0a0a;
         }
         QTabBar::tab {
-            background-color: #2a2d32;
-            color: #c8c8c8;
+            background-color: #111;
+            color: #888;
             padding: 8px 15px;
-            border: 1px solid #3a3d42;
+            border: 1px solid #222;
             border-bottom: none;
+            margin-right: 2px;
         }
         QTabBar::tab:selected {
-            background-color: #1a1d22;
+            background-color: #0a0a0a;
+            color: #4cd6c0;
+            border-top: 2px solid #4cd6c0;
         }
         QToolBar {
-            background-color: #25282d;
-            border: none;
-            spacing: 3px;
-            padding: 2px;
+            background-color: #0a0a0a;
+            border-bottom: 1px solid #222;
+            spacing: 5px;
+            padding: 5px;
         }
         QMenuBar {
-            background-color: #25282d;
-            color: #c8c8c8;
-            padding: 3px;
+            background-color: #0a0a0a;
+            color: #ccc;
+            padding: 4px;
+            border-bottom: 1px solid #222;
         }
         QMenuBar::item {
-            padding: 5px 10px;
+            padding: 6px 12px;
             background-color: transparent;
         }
         QMenuBar::item:selected {
-            background-color: #3a3d42;
-            border-radius: 3px;
+            background-color: #1a1a1a;
+            color: #4cd6c0;
         }
         QMenu {
-            background-color: #25282d;
-            color: #c8c8c8;
-            border: 1px solid #3a3d42;
+            background-color: #111;
+            color: #ccc;
+            border: 1px solid #333;
             padding: 5px;
         }
         QMenu::item {
-            padding: 5px 25px 5px 20px;
-            border-radius: 3px;
+            padding: 6px 25px 6px 20px;
         }
         QMenu::item:selected {
-            background-color: #3a3d42;
+            background-color: #4cd6c0;
+            color: #000;
         }
         QMenu::separator {
             height: 1px;
-            background-color: #3a3d42;
+            background-color: #333;
             margin: 5px 10px;
         }
         QGroupBox {
-            border: 1px solid #3a3d42;
-            border-radius: 5px;
-            margin-top: 10px;
-            padding-top: 10px;
-            color: #c8c8c8;
+            border: 1px solid #222;
+            border-radius: 4px;
+            margin-top: 15px;
+            padding-top: 15px;
+            color: #888;
+            font-weight: bold;
         }
         QGroupBox::title {
             subcontrol-origin: margin;
             left: 10px;
             padding: 0 5px;
+            color: #4cd6c0;
+            background-color: #050505;
         }
         QSplitter::handle {
-            background-color: #2a2d32;
-            width: 2px;
+            background-color: #222;
+            width: 1px;
         }
     )");
 }
