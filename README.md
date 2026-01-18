@@ -1,43 +1,63 @@
-# Pulse Engine
+# 🎮 Pulse Engine
 
-Deterministic C++ simulation engine designed for serious educational and research applications, with a focus on cardiac surgery simulations.
+![Status](https://img.shields.io/badge/Status-Pre--Alpha-orange) ![Language](https://img.shields.io/badge/Language-C%2B%2B23-blue) ![License](https://img.shields.io/badge/License-Proprietary-red)
 
-## Overview
-Pulse Engine is a data-oriented, deterministic simulation engine that allows precise modeling of physiological systems.
-Its primary goal is to provide a safe environment for studying and experimenting with simulation scenarios without risk to real subjects.
+**Pulse Engine** is a custom, high-performance game and simulation engine written in C++.
+Started as a passion project to explore **system architecture**, **physics simulations**, and **advanced mathematics** integration in software.
 
-## Key Features
-- Deterministic simulation core with fixed timestep
-- Data-oriented ECS architecture for high performance
-- Replay and timeline system to review actions
-- Scenario-driven procedures for medical training simulations
-- Tool interaction layer (e.g., surgical instruments simulation)
-- Source code available for study only (see License)
+> ⚠️ **Note:** The project is currently in the early stages of development (Alpha). Architecture is subject to change.
 
-## Architecture
-- **Core:** deterministic simulation loop
-- **ECS:** data-oriented entity-component-system
-- **Physics:** simplified soft-body and fluid dynamics
-- **Physiology Model:** cardiovascular simulation (heart, blood flow, tissues)
-- **Event System:** actions and scenario events
-- **Replay / Timeline:** rewind and analyze procedure steps
-- **Tool Interaction Layer:** instruments interact with simulation
-- **Visualization:** optional 3D representation for demonstration
+## 🎯 Goals
+* Build a robust ECS (Entity Component System).
+* Implement custom memory management.
+* Create a physics sandbox for simulation purposes.
+* Transition from 2D (SFML) to high-performance 3D rendering (Vulkan).
 
-## License
-Proprietary – source code may be downloaded and studied only. All rights reserved by the author.  
-Contact: telegram-@DmitrySemchenko
+## 🛠 Tech Stack
+* **Core:** C++23
+* **Windowing/Input:** SFML (Current), Qt (Tools)
+* **Build System:** CMake
+* **Scripting:** Python (Planned)
 
-## Requirements
-- C++23 compatible compiler (GCC / Clang / MSVC)
-- CMake 3.26+
-- Dependencies: glm, Eigen3, spdlog, fmt, vulkan,qt, EnTT (can be installed via vcpkg)
+## 💻 System Requirements
+Since the engine uses modern C++ features, you will need:
+* **Compiler:** GCC 13+, Clang 16+, or MSVC 2022 (supports C++23).
+* **CMake:** Version 3.25 or higher.
+* **Libraries:** SFML 2.6+, Qt6 (for tools).
 
-## Build & Run
-1. Clone the repository
-2. Configure with CMake: `cmake -S . -B build`
-3. Build: `cmake --build build`
-4. Run the executable in `build/bin/`
+## 🗺 Roadmap
+- [x] Project Setup & CMake configuration
+- [x] Basic Window Loop & Event Handling
+- [ ] Mathematical Vector/Matrix Library implementation
+- [ ] 2D Renderer (Sprite/Shapes)
+- [ ] Simple Physics (Collision Detection)
+- [ ] Resource Manager
+- [ ] Basic object scripting
+- [ ] Project builder
 
-## Contact
-For inquiries, permission requests, or collaboration, contact Dima Semchenko via Telegram: [@DmitrySemchenko](https://t.me/DmitrySemchenko)
+## 🏗️ Current State & UI Prototype
+
+### System Log & Initialization
+*Terminal log showing system startup sequence.*
+<br>
+<img src="docs/assets/log.png" alt="System Log" width="80%">
+
+### Editor Interface
+*Project Browser and Main Window prototypes.*
+
+<p align="center">
+  <img src="docs/assets/ProjectBrowser2.png" alt="Project Browser" width="45%" />
+</p>
+<p align="center">
+  <img src="docs/assets/ProjectBrowser.png" alt="Project Browser" width="45%" />
+  <img src="docs/assets/MainWindow.png" alt="Main Window" width="45%" />
+</p>
+
+
+## 🚀 Getting Started
+```bash
+git clone [https://github.com/AKUMA365/Pulse-Engine.git](https://github.com/AKUMA365/Pulse-Engine.git)
+cd Pulse-Engine
+mkdir build && cd build
+cmake ..
+make
