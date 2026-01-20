@@ -42,6 +42,8 @@ add_executable(PulseEngine
         UI/StartProject.h
         UI/ProjectHistory.cpp
         UI/ProjectHistory.h
+        EngineCore/components.cpp
+        EngineCore/components.h
 )
 
 target_include_directories(PulseEngine PRIVATE UI)

@@ -1,9 +1,19 @@
-//
-// Created by Dima Semchenko on 13.01.2026.
-//
-
 #include "mainwindow.h"
 #include "SFMLWidget.h"
+#include "../EngineCore/components.h"
+
+#include <QApplication>
+#include <QDoubleSpinBox>
+#include <QLineEdit>
+#include <QFormLayout>
+#include <QPushButton>
+#include <QHeaderView>
+#include <QMessageBox>
+#include <QMenuBar>
+#include <QDebug>
+#include <QFileDialog>
+#include <QGroupBox>
+#include <QLabel>
 
 PulseEngineMainWindow::PulseEngineMainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -11,15 +21,9 @@ PulseEngineMainWindow::PulseEngineMainWindow(QWidget *parent)
     setWindowTitle("Pulse Engine");
     setGeometry(100, 100, 1600, 900);
 
-    // Set dark theme
     setup_dark_theme();
-
-    // Create menu bar
     create_menu_bar();
 
-    // Create main toolbar
-
-    // Create central widget with main layout
     QWidget *central_widget = new QWidget(this);
     setCentralWidget(central_widget);
 
@@ -27,13 +31,9 @@ PulseEngineMainWindow::PulseEngineMainWindow(QWidget *parent)
     main_layout->setContentsMargins(0, 0, 0, 0);
     main_layout->setSpacing(0);
 
-    // Create main splitter
     QSplitter *main_splitter = new QSplitter(Qt::Horizontal);
 
-    // Left panel (Hierarchy + Inspector)
     QWidget *left_panel = create_left_panel();
-
-    // Center panel (Scene View + Explorer)
     QSplitter *center_panel = create_center_panel();
 
     main_splitter->addWidget(left_panel);
@@ -41,6 +41,13 @@ PulseEngineMainWindow::PulseEngineMainWindow(QWidget *parent)
     main_splitter->setSizes({280, 1320});
 
     main_layout->addWidget(main_splitter);
+
+    if (m_sfmlWidget) {
+        connect(m_sfmlWidget, &SFMLWidget::entitySelected, this, &PulseEngineMainWindow::on_scene_entity_selected);
+
+        m_sfmlWidget->GetScene().CreateEntity("Cube Object");
+        RefreshHierarchy();
+    }
 }
 
 PulseEngineMainWindow::~PulseEngineMainWindow()
@@ -54,20 +61,46 @@ QWidget* PulseEngineMainWindow::create_left_panel()
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(5);
 
-    // Hierarchy
     QGroupBox *hierarchy_group = new QGroupBox("Hierarchy");
     QVBoxLayout *hierarchy_layout = new QVBoxLayout(hierarchy_group);
-    QTreeWidget *hierarchy_tree = new QTreeWidget();
-    hierarchy_tree->setHeaderHidden(true);
-    hierarchy_layout->addWidget(hierarchy_tree);
 
-    // Inspector
+    m_hierarchyTree = new QTreeWidget();
+    m_hierarchyTree->setHeaderHidden(true);
+    m_hierarchyTree->setIndentation(10);
+    connect(m_hierarchyTree, &QTreeWidget::itemSelectionChanged, this, &PulseEngineMainWindow::on_hierarchy_select);
+
+    QPushButton* addEntityBtn = new QPushButton("Create Entity");
+    connect(addEntityBtn, &QPushButton::clicked, this, &PulseEngineMainWindow::on_add_entity);
+
+    hierarchy_layout->addWidget(addEntityBtn);
+    hierarchy_layout->addWidget(m_hierarchyTree);
+
     QGroupBox *inspector_group = new QGroupBox("Inspector");
-    QVBoxLayout *inspector_layout = new QVBoxLayout(inspector_group);
-    QLabel *inspector_label = new QLabel("Select object to see properties");
-    inspector_layout->addWidget(inspector_label);
+    QFormLayout *inspector_layout = new QFormLayout(inspector_group);
+    inspector_layout->setLabelAlignment(Qt::AlignLeft);
 
-    // Добавляем в общий layout
+    m_tagEdit = new QLineEdit();
+    connect(m_tagEdit, &QLineEdit::editingFinished, this, &PulseEngineMainWindow::on_inspector_change);
+
+    m_posX = new QDoubleSpinBox(); m_posX->setRange(-99999, 99999);
+    m_posY = new QDoubleSpinBox(); m_posY->setRange(-99999, 99999);
+    m_scaleX = new QDoubleSpinBox(); m_scaleX->setRange(-99999, 99999); m_scaleX->setSingleStep(0.1);
+    m_scaleY = new QDoubleSpinBox(); m_scaleY->setRange(-99999, 99999); m_scaleY->setSingleStep(0.1);
+    m_rotation = new QDoubleSpinBox(); m_rotation->setRange(0, 360);
+
+    connect(m_posX, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &PulseEngineMainWindow::on_inspector_change);
+    connect(m_posY, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &PulseEngineMainWindow::on_inspector_change);
+    connect(m_scaleX, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &PulseEngineMainWindow::on_inspector_change);
+    connect(m_scaleY, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &PulseEngineMainWindow::on_inspector_change);
+    connect(m_rotation, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &PulseEngineMainWindow::on_inspector_change);
+
+    inspector_layout->addRow("Name", m_tagEdit);
+    inspector_layout->addRow("Pos X", m_posX);
+    inspector_layout->addRow("Pos Y", m_posY);
+    inspector_layout->addRow("Scale X", m_scaleX);
+    inspector_layout->addRow("Scale Y", m_scaleY);
+    inspector_layout->addRow("Rotation", m_rotation);
+
     layout->addWidget(hierarchy_group);
     layout->addWidget(inspector_group);
 
@@ -78,18 +111,15 @@ QSplitter* PulseEngineMainWindow::create_center_panel()
 {
     QSplitter *center_splitter = new QSplitter(Qt::Vertical);
 
-    // Scene View
     QWidget *scene_container = new QWidget();
     QVBoxLayout *scene_layout = new QVBoxLayout(scene_container);
-    scene_layout->setContentsMargins(0,0,0,0); // Убираем отступы
+    scene_layout->setContentsMargins(0,0,0,0);
 
-    // ВМЕСТО QLabel создаем наш SFMLWidget
-    SFMLWidget *sfml_view = new SFMLWidget();
-    scene_layout->addWidget(sfml_view);
+    m_sfmlWidget = new SFMLWidget();
+    scene_layout->addWidget(m_sfmlWidget);
 
     center_splitter->addWidget(scene_container);
 
-    // Explorer / Assets placeholder
     QWidget *explorer_widget = new QWidget();
     QVBoxLayout *explorer_layout = new QVBoxLayout(explorer_widget);
     QLabel *explorer_label = new QLabel("Explorer / Assets");
@@ -101,6 +131,137 @@ QSplitter* PulseEngineMainWindow::create_center_panel()
 
     return center_splitter;
 }
+
+void PulseEngineMainWindow::RefreshHierarchy()
+{
+    if (!m_hierarchyTree || !m_sfmlWidget) return;
+
+    m_hierarchyTree->clear();
+    auto& registry = m_sfmlWidget->GetScene().GetRegistry();
+
+    auto view = registry.view<TagComponent>();
+    for(auto entity : view) {
+        auto& tag = view.get<TagComponent>(entity);
+        QTreeWidgetItem* item = new QTreeWidgetItem();
+        item->setText(0, QString::fromStdString(tag.Tag));
+        item->setData(0, Qt::UserRole, (qulonglong)entity);
+        m_hierarchyTree->addTopLevelItem(item);
+    }
+}
+
+void PulseEngineMainWindow::on_add_entity()
+{
+    if (!m_sfmlWidget) return;
+    m_sfmlWidget->GetScene().CreateEntity("New Entity");
+    RefreshHierarchy();
+}
+
+void PulseEngineMainWindow::on_hierarchy_select()
+{
+    auto items = m_hierarchyTree->selectedItems();
+    if (items.isEmpty()) {
+        m_selectedEntity = entt::null;
+        UpdateInspector();
+        return;
+    }
+    m_selectedEntity = (entt::entity)items[0]->data(0, Qt::UserRole).toULongLong();
+    UpdateInspector();
+}
+
+void PulseEngineMainWindow::on_scene_entity_selected(size_t entityID)
+{
+    if ((entt::entity)entityID == entt::null) {
+        m_hierarchyTree->clearSelection();
+        return;
+    }
+
+    for(int i = 0; i < m_hierarchyTree->topLevelItemCount(); ++i) {
+        QTreeWidgetItem* item = m_hierarchyTree->topLevelItem(i);
+        if (item->data(0, Qt::UserRole).toULongLong() == (qulonglong)entityID) {
+            m_hierarchyTree->setCurrentItem(item);
+            return;
+        }
+    }
+}
+
+void PulseEngineMainWindow::UpdateInspector()
+{
+    if (m_selectedEntity == entt::null) {
+        m_tagEdit->clear();
+        m_posX->blockSignals(true); m_posX->setValue(0); m_posX->blockSignals(false);
+        m_posY->blockSignals(true); m_posY->setValue(0); m_posY->blockSignals(false);
+        m_scaleX->blockSignals(true); m_scaleX->setValue(1); m_scaleX->blockSignals(false);
+        m_scaleY->blockSignals(true); m_scaleY->setValue(1); m_scaleY->blockSignals(false);
+        m_rotation->blockSignals(true); m_rotation->setValue(0); m_rotation->blockSignals(false);
+        return;
+    }
+
+    if (!m_sfmlWidget) return;
+    auto& registry = m_sfmlWidget->GetScene().GetRegistry();
+
+    if (registry.all_of<TagComponent>(m_selectedEntity)) {
+        m_tagEdit->setText(QString::fromStdString(registry.get<TagComponent>(m_selectedEntity).Tag));
+    }
+
+    if (registry.all_of<TransformComponent>(m_selectedEntity)) {
+        auto& tc = registry.get<TransformComponent>(m_selectedEntity);
+
+        m_posX->blockSignals(true); m_posX->setValue(tc.Position.x); m_posX->blockSignals(false);
+        m_posY->blockSignals(true); m_posY->setValue(tc.Position.y); m_posY->blockSignals(false);
+        m_scaleX->blockSignals(true); m_scaleX->setValue(tc.Scale.x); m_scaleX->blockSignals(false);
+        m_scaleY->blockSignals(true); m_scaleY->setValue(tc.Scale.y); m_scaleY->blockSignals(false);
+        m_rotation->blockSignals(true); m_rotation->setValue(tc.Rotation); m_rotation->blockSignals(false);
+    }
+}
+
+void PulseEngineMainWindow::on_inspector_change()
+{
+    if (m_selectedEntity == entt::null || !m_sfmlWidget) return;
+
+    auto& registry = m_sfmlWidget->GetScene().GetRegistry();
+
+    if (registry.all_of<TagComponent>(m_selectedEntity)) {
+        std::string newTag = m_tagEdit->text().toStdString();
+        if (registry.get<TagComponent>(m_selectedEntity).Tag != newTag) {
+            registry.get<TagComponent>(m_selectedEntity).Tag = newTag;
+
+            auto items = m_hierarchyTree->selectedItems();
+            if(!items.isEmpty()) items[0]->setText(0, m_tagEdit->text());
+        }
+    }
+
+    if (registry.all_of<TransformComponent>(m_selectedEntity)) {
+        auto& tc = registry.get<TransformComponent>(m_selectedEntity);
+        tc.Position.x = m_posX->value();
+        tc.Position.y = m_posY->value();
+        tc.Scale.x = m_scaleX->value();
+        tc.Scale.y = m_scaleY->value();
+        tc.Rotation = m_rotation->value();
+    }
+}
+
+void PulseEngineMainWindow::on_save()
+{
+    if (!m_sfmlWidget) return;
+    QString fileName = QFileDialog::getSaveFileName(this, "Save Scene", "", "JSON Files (*.json)");
+    if (!fileName.isEmpty()) {
+        m_sfmlWidget->GetScene().SaveScene(fileName.toStdString());
+        qDebug() << "Scene saved to" << fileName;
+    }
+}
+
+void PulseEngineMainWindow::on_open_scene()
+{
+    if (!m_sfmlWidget) return;
+    QString fileName = QFileDialog::getOpenFileName(this, "Open Scene", "", "JSON Files (*.json)");
+    if (!fileName.isEmpty()) {
+        m_sfmlWidget->GetScene().LoadScene(fileName.toStdString());
+        RefreshHierarchy();
+        qDebug() << "Scene loaded from" << fileName;
+    }
+}
+
+// ... (остальной код UI и setup_dark_theme без изменений, слоты-заглушки) ...
 
 void PulseEngineMainWindow::setup_dark_theme()
 {
@@ -122,153 +283,26 @@ void PulseEngineMainWindow::setup_dark_theme()
     setPalette(dark_palette);
 
     setStyleSheet(R"(
-        QMainWindow {
-            background-color: #050505;
-            font-family: 'Segoe UI', 'Roboto', sans-serif;
-        }
-        QTreeWidget {
-            background-color: #0a0a0a;
-            border: 1px solid #222;
-            padding: 5px;
-            font-size: 13px;
-        }
-        QTreeWidget::item {
-            padding: 4px;
-            color: #888;
-        }
-        QTreeWidget::item:selected {
-            background-color: #0f1212;
-            color: #4cd6c0;
-            border-left: 2px solid #4cd6c0;
-        }
-        QTreeWidget::item:hover {
-            background-color: #111;
-            color: #ccc;
-        }
-        QLabel {
-            color: #e0e0e0;
-        }
-        QPushButton {
-            background-color: transparent;
-            border: 1px solid #333;
-            border-radius: 2px;
-            padding: 6px 12px;
-            color: #aaa;
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 11px;
-            letter-spacing: 0.5px;
-        }
-        QPushButton:hover {
-            border-color: #666;
-            color: #fff;
-            background-color: #111;
-        }
-        QPushButton:pressed {
-            background-color: #222;
-        }
-        QLineEdit {
-            background-color: #080808;
-            border: 1px solid #333;
-            padding: 6px;
-            border-radius: 2px;
-            color: #fff;
-            font-family: 'Consolas', monospace;
-        }
-        QLineEdit:focus {
-            border: 1px solid #4cd6c0;
-            background-color: #0c0c0c;
-        }
-        QSpinBox {
-            background-color: #080808;
-            border: 1px solid #333;
-            padding: 4px;
-            border-radius: 2px;
-            color: #fff;
-        }
-        QSpinBox:focus {
-            border: 1px solid #4cd6c0;
-        }
-        QTabWidget::pane {
-            border: 1px solid #222;
-            background-color: #0a0a0a;
-        }
-        QTabBar::tab {
-            background-color: #111;
-            color: #888;
-            padding: 8px 15px;
-            border: 1px solid #222;
-            border-bottom: none;
-            margin-right: 2px;
-        }
-        QTabBar::tab:selected {
-            background-color: #0a0a0a;
-            color: #4cd6c0;
-            border-top: 2px solid #4cd6c0;
-        }
-        QToolBar {
-            background-color: #0a0a0a;
-            border-bottom: 1px solid #222;
-            spacing: 5px;
-            padding: 5px;
-        }
-        QMenuBar {
-            background-color: #0a0a0a;
-            color: #ccc;
-            padding: 4px;
-            border-bottom: 1px solid #222;
-        }
-        QMenuBar::item {
-            padding: 6px 12px;
-            background-color: transparent;
-        }
-        QMenuBar::item:selected {
-            background-color: #1a1a1a;
-            color: #4cd6c0;
-        }
-        QMenu {
-            background-color: #111;
-            color: #ccc;
-            border: 1px solid #333;
-            padding: 5px;
-        }
-        QMenu::item {
-            padding: 6px 25px 6px 20px;
-        }
-        QMenu::item:selected {
-            background-color: #4cd6c0;
-            color: #000;
-        }
-        QMenu::separator {
-            height: 1px;
-            background-color: #333;
-            margin: 5px 10px;
-        }
-        QGroupBox {
-            border: 1px solid #222;
-            border-radius: 4px;
-            margin-top: 15px;
-            padding-top: 15px;
-            color: #888;
-            font-weight: bold;
-        }
-        QGroupBox::title {
-            subcontrol-origin: margin;
-            left: 10px;
-            padding: 0 5px;
-            color: #4cd6c0;
-            background-color: #050505;
-        }
-        QSplitter::handle {
-            background-color: #222;
-            width: 1px;
-        }
+        QMainWindow { background-color: #050505; font-family: 'Segoe UI', 'Roboto', sans-serif; }
+        QTreeWidget { background-color: #0a0a0a; border: 1px solid #222; padding: 5px; font-size: 13px; }
+        QTreeWidget::item { padding: 4px; color: #888; }
+        QTreeWidget::item:selected { background-color: #0f1212; color: #4cd6c0; border-left: 2px solid #4cd6c0; }
+        QTreeWidget::item:hover { background-color: #111; color: #ccc; }
+        QLabel { color: #e0e0e0; }
+        QPushButton { background-color: transparent; border: 1px solid #333; border-radius: 2px; padding: 6px 12px; color: #aaa; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+        QPushButton:hover { border-color: #666; color: #fff; background-color: #111; }
+        QPushButton:pressed { background-color: #222; }
+        QLineEdit { background-color: #080808; border: 1px solid #333; padding: 6px; border-radius: 2px; color: #fff; font-family: 'Consolas', monospace; }
+        QLineEdit:focus { border: 1px solid #4cd6c0; background-color: #0c0c0c; }
+        QSpinBox, QDoubleSpinBox { background-color: #080808; border: 1px solid #333; padding: 4px; border-radius: 2px; color: #fff; }
+        QSpinBox:focus, QDoubleSpinBox:focus { border: 1px solid #4cd6c0; }
+        QGroupBox { border: 1px solid #222; border-radius: 4px; margin-top: 15px; padding-top: 15px; color: #888; font-weight: bold; }
+        QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 5px; color: #4cd6c0; background-color: #050505; }
+        QSplitter::handle { background-color: #222; width: 1px; }
     )");
 }
 
-QWidget* PulseEngineMainWindow::create_logo_widget()
-{
-    /* Create the logo widget in the top left corner */
+QWidget* PulseEngineMainWindow::create_logo_widget() {
     QWidget *logo_widget = new QWidget();
     QHBoxLayout *logo_layout = new QHBoxLayout(logo_widget);
     logo_layout->setContentsMargins(10, 5, 10, 5);
@@ -278,970 +312,191 @@ QWidget* PulseEngineMainWindow::create_logo_widget()
     QPixmap logoPixmap("UI/resources/PulseEngineLogo.png");
 
     if (logoPixmap.isNull()) {
-        logo_label->setText("Logo Not Found");
+        logo_label->setText("Logo");
     } else {
-
         logo_label->setPixmap(logoPixmap.scaled(40, 40, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     }
 
-    logo_label->setStyleSheet(R"(
-        background-color: #2a2d32;
-        padding: 5px 10px;
-        border-radius: 5px;
-    )");
-    // -------------------
-
     QLabel *title_label = new QLabel("Pulse Engine");
-    title_label->setStyleSheet(R"(
-        color: #5ab9ff;
-        font-weight: bold;
-        font-size: 16px;
-    )");
+    title_label->setStyleSheet("color: #5ab9ff; font-weight: bold; font-size: 16px;");
 
     logo_layout->addWidget(logo_label);
     logo_layout->addWidget(title_label);
     logo_layout->addStretch();
-
     return logo_widget;
 }
 
-void PulseEngineMainWindow::create_menu_bar()
-{
-    /* Create the top menu bar */
+void PulseEngineMainWindow::create_menu_bar() {
     QMenuBar *menubar = menuBar();
-
-    // Disable native menu bar for cross-platform consistency (especially macOS)
     menubar->setNativeMenuBar(false);
+    menubar->setCornerWidget(create_logo_widget(), Qt::TopLeftCorner);
 
-    // Add logo widget to the left of the menu bar
-    QWidget *logo_widget = create_logo_widget();
-    menubar->setCornerWidget(logo_widget, Qt::TopLeftCorner);
-
-    // File menu - Project and scene operations
     QMenu *file_menu = menubar->addMenu("File");
-
-    QAction *new_project_action = new QAction("New Project", this);
-    connect(new_project_action, &QAction::triggered, this, &PulseEngineMainWindow::on_new_project); // #TODO: Implement new project creation
-    file_menu->addAction(new_project_action);
-
-    QAction *new_scene_action = new QAction("New Scene", this);
-    connect(new_scene_action, &QAction::triggered, this, &PulseEngineMainWindow::on_new_scene); // #TODO: Implement new scene creation
-    file_menu->addAction(new_scene_action);
-
+    file_menu->addAction("New Project", this, &PulseEngineMainWindow::on_new_project);
+    file_menu->addAction("New Scene", this, &PulseEngineMainWindow::on_new_scene);
     file_menu->addSeparator();
-
-    QAction *open_project_action = new QAction("Open Project", this);
-    connect(open_project_action, &QAction::triggered, this, &PulseEngineMainWindow::on_open_project); // #TODO: Implement project opening dialog
-    file_menu->addAction(open_project_action);
-
-    QAction *open_scene_action = new QAction("Open Scene", this);
-    connect(open_scene_action, &QAction::triggered, this, &PulseEngineMainWindow::on_open_scene); // #TODO: Implement scene opening dialog
-    file_menu->addAction(open_scene_action);
-
+    file_menu->addAction("Open Project", this, &PulseEngineMainWindow::on_open_project);
+    file_menu->addAction("Open Scene", this, &PulseEngineMainWindow::on_open_scene);
     file_menu->addSeparator();
-
-    QAction *save_action = new QAction("Save", this);
-    save_action->setShortcut(QKeySequence("Ctrl+S"));
-    connect(save_action, &QAction::triggered, this, &PulseEngineMainWindow::on_save); // #TODO: Implement save current scene/project
-    file_menu->addAction(save_action);
-
-    QAction *save_as_action = new QAction("Save As...", this);
-    save_as_action->setShortcut(QKeySequence("Ctrl+Shift+S"));
-    connect(save_as_action, &QAction::triggered, this, &PulseEngineMainWindow::on_save_as); // #TODO: Implement save as dialog
-    file_menu->addAction(save_as_action);
-
+    file_menu->addAction("Save", this, &PulseEngineMainWindow::on_save, QKeySequence("Ctrl+S"));
+    file_menu->addAction("Save As...", this, &PulseEngineMainWindow::on_save_as, QKeySequence("Ctrl+Shift+S"));
     file_menu->addSeparator();
-
-    QAction *export_action = new QAction("Export", this);
-    connect(export_action, &QAction::triggered, this, &PulseEngineMainWindow::on_export); // #TODO: Implement export functionality
-    file_menu->addAction(export_action);
-
-    QAction *import_action = new QAction("Import", this);
-    connect(import_action, &QAction::triggered, this, &PulseEngineMainWindow::on_import); // #TODO: Implement import functionality
-    file_menu->addAction(import_action);
-
+    file_menu->addAction("Export", this, &PulseEngineMainWindow::on_export);
+    file_menu->addAction("Import", this, &PulseEngineMainWindow::on_import);
     file_menu->addSeparator();
+    file_menu->addAction("Close Project", this, &PulseEngineMainWindow::on_close_project);
+    file_menu->addAction("Exit", this, &PulseEngineMainWindow::on_exit, QKeySequence("Ctrl+Q"));
 
-    QAction *close_project_action = new QAction("Close Project", this);
-    connect(close_project_action, &QAction::triggered, this, &PulseEngineMainWindow::on_close_project); // #TODO: Implement close project
-    file_menu->addAction(close_project_action);
-
-    QAction *exit_action = new QAction("Exit", this);
-    exit_action->setShortcut(QKeySequence("Ctrl+Q"));
-    connect(exit_action, &QAction::triggered, this, &PulseEngineMainWindow::on_exit);
-    file_menu->addAction(exit_action);
-
-    // Edit menu - Editing objects and scenes
     QMenu *edit_menu = menubar->addMenu("Edit");
-
-    QAction *undo_action = new QAction("Undo", this);
-    undo_action->setShortcut(QKeySequence("Ctrl+Z"));
-    connect(undo_action, &QAction::triggered, this, &PulseEngineMainWindow::on_undo); // #TODO: Implement undo functionality
-    edit_menu->addAction(undo_action);
-
-    QAction *redo_action = new QAction("Redo", this);
-    redo_action->setShortcut(QKeySequence("Ctrl+Y"));
-    connect(redo_action, &QAction::triggered, this, &PulseEngineMainWindow::on_redo); // #TODO: Implement redo functionality
-    edit_menu->addAction(redo_action);
-
+    edit_menu->addAction("Undo", this, &PulseEngineMainWindow::on_undo, QKeySequence("Ctrl+Z"));
+    edit_menu->addAction("Redo", this, &PulseEngineMainWindow::on_redo, QKeySequence("Ctrl+Y"));
     edit_menu->addSeparator();
-
-    QAction *cut_action = new QAction("Cut", this);
-    cut_action->setShortcut(QKeySequence("Ctrl+X"));
-    connect(cut_action, &QAction::triggered, this, &PulseEngineMainWindow::on_cut); // #TODO: Implement cut selected objects
-    edit_menu->addAction(cut_action);
-
-    QAction *copy_action = new QAction("Copy", this);
-    copy_action->setShortcut(QKeySequence("Ctrl+C"));
-    connect(copy_action, &QAction::triggered, this, &PulseEngineMainWindow::on_copy); // #TODO: Implement copy selected objects
-    edit_menu->addAction(copy_action);
-
-    QAction *paste_action = new QAction("Paste", this);
-    paste_action->setShortcut(QKeySequence("Ctrl+V"));
-    connect(paste_action, &QAction::triggered, this, &PulseEngineMainWindow::on_paste); // #TODO: Implement paste objects
-    edit_menu->addAction(paste_action);
-
-    QAction *delete_action = new QAction("Delete", this);
-    delete_action->setShortcut(QKeySequence("Delete"));
-    connect(delete_action, &QAction::triggered, this, &PulseEngineMainWindow::on_delete); // #TODO: Implement delete selected objects
-    edit_menu->addAction(delete_action);
-
+    edit_menu->addAction("Cut", this, &PulseEngineMainWindow::on_cut, QKeySequence("Ctrl+X"));
+    edit_menu->addAction("Copy", this, &PulseEngineMainWindow::on_copy, QKeySequence("Ctrl+C"));
+    edit_menu->addAction("Paste", this, &PulseEngineMainWindow::on_paste, QKeySequence("Ctrl+V"));
+    edit_menu->addAction("Delete", this, &PulseEngineMainWindow::on_delete, QKeySequence("Delete"));
     edit_menu->addSeparator();
-
-    QAction *duplicate_action = new QAction("Duplicate", this);
-    duplicate_action->setShortcut(QKeySequence("Ctrl+D"));
-    connect(duplicate_action, &QAction::triggered, this, &PulseEngineMainWindow::on_duplicate); // #TODO: Implement duplicate selected objects
-    edit_menu->addAction(duplicate_action);
-
+    edit_menu->addAction("Duplicate", this, &PulseEngineMainWindow::on_duplicate, QKeySequence("Ctrl+D"));
     edit_menu->addSeparator();
-
-    QAction *select_all_action = new QAction("Select All", this);
-    select_all_action->setShortcut(QKeySequence("Ctrl+A"));
-    connect(select_all_action, &QAction::triggered, this, &PulseEngineMainWindow::on_select_all); // #TODO: Implement select all objects
-    edit_menu->addAction(select_all_action);
-
-    QAction *invert_selection_action = new QAction("Invert Selection", this);
-    invert_selection_action->setShortcut(QKeySequence("Ctrl+I"));
-    connect(invert_selection_action, &QAction::triggered, this, &PulseEngineMainWindow::on_invert_selection); // #TODO: Implement invert selection
-    edit_menu->addAction(invert_selection_action);
-
+    edit_menu->addAction("Select All", this, &PulseEngineMainWindow::on_select_all, QKeySequence("Ctrl+A"));
+    edit_menu->addAction("Invert Selection", this, &PulseEngineMainWindow::on_invert_selection, QKeySequence("Ctrl+I"));
     edit_menu->addSeparator();
+    edit_menu->addAction("Preferences", this, &PulseEngineMainWindow::on_preferences, QKeySequence("Ctrl+,"));
+    edit_menu->addAction("Settings", this, &PulseEngineMainWindow::on_edit_settings);
 
-    QAction *preferences_action = new QAction("Preferences", this);
-    preferences_action->setShortcut(QKeySequence("Ctrl+,"));
-    connect(preferences_action, &QAction::triggered, this, &PulseEngineMainWindow::on_preferences); // #TODO: Implement preferences dialog
-    edit_menu->addAction(preferences_action);
-
-    QAction *settings_action = new QAction("Settings", this);
-    connect(settings_action, &QAction::triggered, this, &PulseEngineMainWindow::on_edit_settings); // #TODO: Implement settings dialog
-    edit_menu->addAction(settings_action);
-
-    // Settings menu - Project and editor settings
     QMenu *settings_menu = menubar->addMenu("Settings");
-
-    QAction *project_settings_action = new QAction("Project Settings", this);
-    connect(project_settings_action, &QAction::triggered, this, &PulseEngineMainWindow::on_project_settings); // #TODO: Implement project settings dialog
-    settings_menu->addAction(project_settings_action);
-
-    QAction *editor_settings_action = new QAction("Editor Settings", this);
-    connect(editor_settings_action, &QAction::triggered, this, &PulseEngineMainWindow::on_editor_settings); // #TODO: Implement editor settings dialog
-    settings_menu->addAction(editor_settings_action);
-
+    settings_menu->addAction("Project Settings", this, &PulseEngineMainWindow::on_project_settings);
+    settings_menu->addAction("Editor Settings", this, &PulseEngineMainWindow::on_editor_settings);
     settings_menu->addSeparator();
-
-    QAction *graphics_settings_action = new QAction("Graphics Settings", this);
-    connect(graphics_settings_action, &QAction::triggered, this, &PulseEngineMainWindow::on_graphics_settings); // #TODO: Implement graphics settings
-    settings_menu->addAction(graphics_settings_action);
-
-    QAction *rendering_settings_action = new QAction("Rendering Settings", this);
-    connect(rendering_settings_action, &QAction::triggered, this, &PulseEngineMainWindow::on_rendering_settings); // #TODO: Implement rendering settings
-    settings_menu->addAction(rendering_settings_action);
-
+    settings_menu->addAction("Graphics Settings", this, &PulseEngineMainWindow::on_graphics_settings);
+    settings_menu->addAction("Rendering Settings", this, &PulseEngineMainWindow::on_rendering_settings);
     settings_menu->addSeparator();
+    settings_menu->addAction("Input Settings", this, &PulseEngineMainWindow::on_input_settings);
+    settings_menu->addAction("Controls", this, &PulseEngineMainWindow::on_controls_settings);
 
-    QAction *input_settings_action = new QAction("Input Settings", this);
-    connect(input_settings_action, &QAction::triggered, this, &PulseEngineMainWindow::on_input_settings); // #TODO: Implement input settings
-    settings_menu->addAction(input_settings_action);
-
-    QAction *controls_settings_action = new QAction("Controls", this);
-    connect(controls_settings_action, &QAction::triggered, this, &PulseEngineMainWindow::on_controls_settings); // #TODO: Implement controls configuration
-    settings_menu->addAction(controls_settings_action);
-
-    // Tools menu - Utility tools
     QMenu *tools_menu = menubar->addMenu("Tools");
-
-    QAction *script_editor_action = new QAction("Script Editor", this);
-    connect(script_editor_action, &QAction::triggered, this, &PulseEngineMainWindow::on_script_editor); // #TODO: Implement script editor
-    tools_menu->addAction(script_editor_action);
-
-    QAction *debugger_action = new QAction("Debugger", this);
-    connect(debugger_action, &QAction::triggered, this, &PulseEngineMainWindow::on_debugger); // #TODO: Implement debugger
-    tools_menu->addAction(debugger_action);
-
+    tools_menu->addAction("Script Editor", this, &PulseEngineMainWindow::on_script_editor);
+    tools_menu->addAction("Debugger", this, &PulseEngineMainWindow::on_debugger);
     tools_menu->addSeparator();
-
-    QAction *asset_manager_action = new QAction("Asset Manager", this);
-    connect(asset_manager_action, &QAction::triggered, this, &PulseEngineMainWindow::on_asset_manager); // #TODO: Implement asset manager
-    tools_menu->addAction(asset_manager_action);
-
+    tools_menu->addAction("Asset Manager", this, &PulseEngineMainWindow::on_asset_manager);
     tools_menu->addSeparator();
-
-    QAction *physics_tools_action = new QAction("Physics Tools", this);
-    connect(physics_tools_action, &QAction::triggered, this, &PulseEngineMainWindow::on_physics_tools); // #TODO: Implement physics tools
-    tools_menu->addAction(physics_tools_action);
-
-    QAction *ai_tools_action = new QAction("AI Tools", this);
-    connect(ai_tools_action, &QAction::triggered, this, &PulseEngineMainWindow::on_ai_tools); // #TODO: Implement AI tools
-    tools_menu->addAction(ai_tools_action);
-
-    QAction *pathfinding_tools_action = new QAction("Pathfinding Tools", this);
-    connect(pathfinding_tools_action, &QAction::triggered, this, &PulseEngineMainWindow::on_pathfinding_tools); // #TODO: Implement pathfinding tools
-    tools_menu->addAction(pathfinding_tools_action);
-
+    tools_menu->addAction("Physics Tools", this, &PulseEngineMainWindow::on_physics_tools);
+    tools_menu->addAction("AI Tools", this, &PulseEngineMainWindow::on_ai_tools);
+    tools_menu->addAction("Pathfinding Tools", this, &PulseEngineMainWindow::on_pathfinding_tools);
     tools_menu->addSeparator();
+    tools_menu->addAction("Console", this, &PulseEngineMainWindow::on_console);
+    tools_menu->addAction("Log Viewer", this, &PulseEngineMainWindow::on_log_viewer);
 
-    QAction *console_action = new QAction("Console", this);
-    connect(console_action, &QAction::triggered, this, &PulseEngineMainWindow::on_console); // #TODO: Implement console window
-    tools_menu->addAction(console_action);
-
-    QAction *log_viewer_action = new QAction("Log Viewer", this);
-    connect(log_viewer_action, &QAction::triggered, this, &PulseEngineMainWindow::on_log_viewer); // #TODO: Implement log viewer
-    tools_menu->addAction(log_viewer_action);
-
-    // View menu - Interface and scene visualization
     QMenu *view_menu = menubar->addMenu("View");
+    QMenu *panels_menu = view_menu->addMenu("Toggle Panels");
 
-    // Toggle Panels submenu
-    QMenu *toggle_panels_menu = view_menu->addMenu("Toggle Panels");
-
-    toggle_hierarchy_action = new QAction("Hierarchy", this);
+    toggle_hierarchy_action = panels_menu->addAction("Hierarchy", this, &PulseEngineMainWindow::on_toggle_hierarchy);
     toggle_hierarchy_action->setCheckable(true);
     toggle_hierarchy_action->setChecked(true);
-    connect(toggle_hierarchy_action, &QAction::triggered, this, &PulseEngineMainWindow::on_toggle_hierarchy); // #TODO: Toggle hierarchy panel
-    toggle_panels_menu->addAction(toggle_hierarchy_action);
 
-    toggle_inspector_action = new QAction("Inspector", this);
+    toggle_inspector_action = panels_menu->addAction("Inspector", this, &PulseEngineMainWindow::on_toggle_inspector);
     toggle_inspector_action->setCheckable(true);
     toggle_inspector_action->setChecked(true);
-    connect(toggle_inspector_action, &QAction::triggered, this, &PulseEngineMainWindow::on_toggle_inspector); // #TODO: Toggle inspector panel
-    toggle_panels_menu->addAction(toggle_inspector_action);
 
-    toggle_assets_action = new QAction("Assets", this);
+    toggle_assets_action = panels_menu->addAction("Assets", this, &PulseEngineMainWindow::on_toggle_assets);
     toggle_assets_action->setCheckable(true);
     toggle_assets_action->setChecked(true);
-    connect(toggle_assets_action, &QAction::triggered, this, &PulseEngineMainWindow::on_toggle_assets); // #TODO: Toggle assets panel
-    toggle_panels_menu->addAction(toggle_assets_action);
 
-    toggle_console_action = new QAction("Console", this);
+    toggle_console_action = panels_menu->addAction("Console", this, &PulseEngineMainWindow::on_toggle_console);
     toggle_console_action->setCheckable(true);
     toggle_console_action->setChecked(true);
-    connect(toggle_console_action, &QAction::triggered, this, &PulseEngineMainWindow::on_toggle_console); // #TODO: Toggle console panel
-    toggle_panels_menu->addAction(toggle_console_action);
 
-    toggle_explorer_action = new QAction("Explorer", this);
+    toggle_explorer_action = panels_menu->addAction("Explorer", this, &PulseEngineMainWindow::on_toggle_explorer);
     toggle_explorer_action->setCheckable(true);
     toggle_explorer_action->setChecked(true);
-    connect(toggle_explorer_action, &QAction::triggered, this, &PulseEngineMainWindow::on_toggle_explorer); // #TODO: Toggle explorer panel
-    toggle_panels_menu->addAction(toggle_explorer_action);
 
     view_menu->addSeparator();
-
-    fullscreen_action = new QAction("Fullscreen", this);
-    fullscreen_action->setShortcut(QKeySequence("F11"));
+    fullscreen_action = view_menu->addAction("Fullscreen", this, &PulseEngineMainWindow::on_toggle_fullscreen, QKeySequence("F11"));
     fullscreen_action->setCheckable(true);
-    connect(fullscreen_action, &QAction::triggered, this, &PulseEngineMainWindow::on_toggle_fullscreen); // #TODO: Implement fullscreen toggle
-    view_menu->addAction(fullscreen_action);
 
-    // Layouts submenu
     QMenu *layouts_menu = view_menu->addMenu("Layouts");
-
-    QAction *default_layout_action = new QAction("Default Layout", this);
-    connect(default_layout_action, &QAction::triggered, this, &PulseEngineMainWindow::on_default_layout); // #TODO: Load default layout
-    layouts_menu->addAction(default_layout_action);
-
-    QAction *coding_layout_action = new QAction("Coding Layout", this);
-    connect(coding_layout_action, &QAction::triggered, this, &PulseEngineMainWindow::on_coding_layout); // #TODO: Load coding layout
-    layouts_menu->addAction(coding_layout_action);
-
-    QAction *art_layout_action = new QAction("Art Layout", this);
-    connect(art_layout_action, &QAction::triggered, this, &PulseEngineMainWindow::on_art_layout); // #TODO: Load art layout
-    layouts_menu->addAction(art_layout_action);
-
-    QAction *design_layout_action = new QAction("Design Layout", this);
-    connect(design_layout_action, &QAction::triggered, this, &PulseEngineMainWindow::on_design_layout); // #TODO: Load design layout
-    layouts_menu->addAction(design_layout_action);
-
+    layouts_menu->addAction("Default Layout", this, &PulseEngineMainWindow::on_default_layout);
+    layouts_menu->addAction("Coding Layout", this, &PulseEngineMainWindow::on_coding_layout);
+    layouts_menu->addAction("Art Layout", this, &PulseEngineMainWindow::on_art_layout);
+    layouts_menu->addAction("Design Layout", this, &PulseEngineMainWindow::on_design_layout);
     layouts_menu->addSeparator();
-
-    QAction *save_layout_action = new QAction("Save Current Layout", this);
-    connect(save_layout_action, &QAction::triggered, this, &PulseEngineMainWindow::on_save_layout); // #TODO: Save current layout
-    layouts_menu->addAction(save_layout_action);
+    layouts_menu->addAction("Save Current Layout", this, &PulseEngineMainWindow::on_save_layout);
 
     view_menu->addSeparator();
-
-    // Zoom submenu
     QMenu *zoom_menu = view_menu->addMenu("Zoom");
-
-    QAction *zoom_in_action = new QAction("Zoom In", this);
-    zoom_in_action->setShortcut(QKeySequence("Ctrl++"));
-    connect(zoom_in_action, &QAction::triggered, this, &PulseEngineMainWindow::on_zoom_in); // #TODO: Zoom in scene view
-    zoom_menu->addAction(zoom_in_action);
-
-    QAction *zoom_out_action = new QAction("Zoom Out", this);
-    zoom_out_action->setShortcut(QKeySequence("Ctrl+-"));
-    connect(zoom_out_action, &QAction::triggered, this, &PulseEngineMainWindow::on_zoom_out); // #TODO: Zoom out scene view
-    zoom_menu->addAction(zoom_out_action);
-
-    QAction *zoom_reset_action = new QAction("Reset Zoom", this);
-    zoom_reset_action->setShortcut(QKeySequence("Ctrl+0"));
-    connect(zoom_reset_action, &QAction::triggered, this, &PulseEngineMainWindow::on_zoom_reset); // #TODO: Reset zoom to default
-    zoom_menu->addAction(zoom_reset_action);
-
-    zoom_menu->addSeparator();
-
-    QAction *frame_selected_action = new QAction("Frame Selected", this);
-    frame_selected_action->setShortcut(QKeySequence("F"));
-    connect(frame_selected_action, &QAction::triggered, this, &PulseEngineMainWindow::on_frame_selected); // #TODO: Frame selected object in view
-    zoom_menu->addAction(frame_selected_action);
+    zoom_menu->addAction("Zoom In", this, &PulseEngineMainWindow::on_zoom_in, QKeySequence("Ctrl++"));
+    zoom_menu->addAction("Zoom Out", this, &PulseEngineMainWindow::on_zoom_out, QKeySequence("Ctrl+-"));
+    zoom_menu->addAction("Reset Zoom", this, &PulseEngineMainWindow::on_zoom_reset, QKeySequence("Ctrl+0"));
+    view_menu->addAction("Frame Selected", this, &PulseEngineMainWindow::on_frame_selected, QKeySequence("F"));
 
     view_menu->addSeparator();
-
-    show_grid_action = new QAction("Show Grid", this);
+    show_grid_action = view_menu->addAction("Show Grid", this, &PulseEngineMainWindow::on_toggle_grid);
     show_grid_action->setCheckable(true);
     show_grid_action->setChecked(true);
-    connect(show_grid_action, &QAction::triggered, this, &PulseEngineMainWindow::on_toggle_grid); // #TODO: Toggle grid visibility
-    view_menu->addAction(show_grid_action);
 
-    show_gizmos_action = new QAction("Show Gizmos", this);
+    show_gizmos_action = view_menu->addAction("Show Gizmos", this, &PulseEngineMainWindow::on_toggle_gizmos);
     show_gizmos_action->setCheckable(true);
     show_gizmos_action->setChecked(true);
-    connect(show_gizmos_action, &QAction::triggered, this, &PulseEngineMainWindow::on_toggle_gizmos); // #TODO: Toggle gizmos visibility
-    view_menu->addAction(show_gizmos_action);
 
     view_menu->addSeparator();
-
-    // Camera submenu
     QMenu *camera_menu = view_menu->addMenu("Camera");
-
-    perspective_camera_action = new QAction("Perspective", this);
+    perspective_camera_action = camera_menu->addAction("Perspective", this, &PulseEngineMainWindow::on_perspective_camera);
     perspective_camera_action->setCheckable(true);
     perspective_camera_action->setChecked(true);
-    connect(perspective_camera_action, &QAction::triggered, this, &PulseEngineMainWindow::on_perspective_camera); // #TODO: Switch to perspective camera
-    camera_menu->addAction(perspective_camera_action);
 
-    orthographic_camera_action = new QAction("Orthographic", this);
+    orthographic_camera_action = camera_menu->addAction("Orthographic", this, &PulseEngineMainWindow::on_orthographic_camera);
     orthographic_camera_action->setCheckable(true);
-    connect(orthographic_camera_action, &QAction::triggered, this, &PulseEngineMainWindow::on_orthographic_camera); // #TODO: Switch to orthographic camera
-    camera_menu->addAction(orthographic_camera_action);
 
     camera_menu->addSeparator();
-
-    QAction *top_view_action = new QAction("Top View", this);
-    top_view_action->setShortcut(QKeySequence("Numpad 7"));
-    connect(top_view_action, &QAction::triggered, this, &PulseEngineMainWindow::on_top_view); // #TODO: Switch to top view
-    camera_menu->addAction(top_view_action);
-
-    QAction *front_view_action = new QAction("Front View", this);
-    front_view_action->setShortcut(QKeySequence("Numpad 1"));
-    connect(front_view_action, &QAction::triggered, this, &PulseEngineMainWindow::on_front_view); // #TODO: Switch to front view
-    camera_menu->addAction(front_view_action);
-
-    QAction *side_view_action = new QAction("Side View", this);
-    side_view_action->setShortcut(QKeySequence("Numpad 3"));
-    connect(side_view_action, &QAction::triggered, this, &PulseEngineMainWindow::on_side_view); // #TODO: Switch to side view
-    camera_menu->addAction(side_view_action);
-}
-
-// ===========================================
-// MENU ACTION SLOTS - File Menu
-// ===========================================
-
-void PulseEngineMainWindow::on_new_project()
-{
-    /* #TODO: Implement new project creation dialog */
-    qDebug() << "File -> New Project clicked";
-}
-
-void PulseEngineMainWindow::on_new_scene()
-{
-    /* #TODO: Implement new scene creation */
-    qDebug() << "File -> New Scene clicked";
-}
-
-void PulseEngineMainWindow::on_open_project()
-{
-    /* #TODO: Implement project opening dialog */
-    qDebug() << "File -> Open Project clicked";
-}
-
-void PulseEngineMainWindow::on_open_scene()
-{
-    /* #TODO: Implement scene opening dialog */
-    qDebug() << "File -> Open Scene clicked";
-}
-
-void PulseEngineMainWindow::on_save()
-{
-    /* #TODO: Implement save current scene/project */
-    qDebug() << "File -> Save clicked";
-}
-
-void PulseEngineMainWindow::on_save_as()
-{
-    /* #TODO: Implement save as dialog */
-    qDebug() << "File -> Save As clicked";
-}
-
-void PulseEngineMainWindow::on_export()
-{
-    /* #TODO: Implement export functionality */
-    qDebug() << "File -> Export clicked";
-}
-
-void PulseEngineMainWindow::on_import()
-{
-    /* #TODO: Implement import functionality */
-    qDebug() << "File -> Import clicked";
-}
-
-void PulseEngineMainWindow::on_close_project()
-{
-    /* #TODO: Implement close project with confirmation */
-    qDebug() << "File -> Close Project clicked";
-}
-
-void PulseEngineMainWindow::on_exit()
-{
-    /* Exit application with confirmation */
-    QMessageBox::StandardButton reply;
-    reply = QMessageBox::question(this, "Exit Pulse Engine", "Are you sure you want to exit?",
-                                  QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
-    if (reply == QMessageBox::Yes) {
-        close();
-    }
-}
-
-// ===========================================
-// MENU ACTION SLOTS - Edit Menu
-// ===========================================
-
-void PulseEngineMainWindow::on_undo()
-{
-    /* #TODO: Implement undo functionality */
-    qDebug() << "Edit -> Undo clicked";
-}
-
-void PulseEngineMainWindow::on_redo()
-{
-    /* #TODO: Implement redo functionality */
-    qDebug() << "Edit -> Redo clicked";
-}
-
-void PulseEngineMainWindow::on_cut()
-{
-    /* #TODO: Implement cut selected objects */
-    qDebug() << "Edit -> Cut clicked";
-}
-
-void PulseEngineMainWindow::on_copy()
-{
-    /* #TODO: Implement copy selected objects */
-    qDebug() << "Edit -> Copy clicked";
-}
-
-void PulseEngineMainWindow::on_paste()
-{
-    /* #TODO: Implement paste objects */
-    qDebug() << "Edit -> Paste clicked";
-}
-
-void PulseEngineMainWindow::on_delete()
-{
-    /* #TODO: Implement delete selected objects */
-    qDebug() << "Edit -> Delete clicked";
-}
-
-void PulseEngineMainWindow::on_duplicate()
-{
-    /* #TODO: Implement duplicate selected objects */
-    qDebug() << "Edit -> Duplicate clicked";
-}
-
-void PulseEngineMainWindow::on_select_all()
-{
-    /* #TODO: Implement select all objects */
-    qDebug() << "Edit -> Select All clicked";
-}
-
-void PulseEngineMainWindow::on_invert_selection()
-{
-    /* #TODO: Implement invert selection */
-    qDebug() << "Edit -> Invert Selection clicked";
-}
-
-void PulseEngineMainWindow::on_preferences()
-{
-    /* #TODO: Implement preferences dialog */
-    qDebug() << "Edit -> Preferences clicked";
-}
-
-void PulseEngineMainWindow::on_edit_settings()
-{
-    /* #TODO: Implement settings dialog */
-    qDebug() << "Edit -> Settings clicked";
-}
-
-// ===========================================
-// MENU ACTION SLOTS - Settings Menu
-// ===========================================
-
-void PulseEngineMainWindow::on_project_settings()
-{
-    /* #TODO: Implement project settings dialog */
-    qDebug() << "Settings -> Project Settings clicked";
-}
-
-void PulseEngineMainWindow::on_editor_settings()
-{
-    /* #TODO: Implement editor settings dialog */
-    qDebug() << "Settings -> Editor Settings clicked";
-}
-
-void PulseEngineMainWindow::on_graphics_settings()
-{
-    /* #TODO: Implement graphics settings */
-    qDebug() << "Settings -> Graphics Settings clicked";
-}
-
-void PulseEngineMainWindow::on_rendering_settings()
-{
-    /* #TODO: Implement rendering settings */
-    qDebug() << "Settings -> Rendering Settings clicked";
-}
-
-void PulseEngineMainWindow::on_input_settings()
-{
-    /* #TODO: Implement input settings */
-    qDebug() << "Settings -> Input Settings clicked";
-}
-
-void PulseEngineMainWindow::on_controls_settings()
-{
-    /* #TODO: Implement controls configuration */
-    qDebug() << "Settings -> Controls clicked";
-}
-
-// ===========================================
-// MENU ACTION SLOTS - Tools Menu
-// ===========================================
-
-void PulseEngineMainWindow::on_script_editor()
-{
-    /* #TODO: Implement script editor */
-    qDebug() << "Tools -> Script Editor clicked";
-}
-
-void PulseEngineMainWindow::on_debugger()
-{
-    /* #TODO: Implement debugger */
-    qDebug() << "Tools -> Debugger clicked";
-}
-
-void PulseEngineMainWindow::on_asset_manager()
-{
-    /* #TODO: Implement asset manager */
-    qDebug() << "Tools -> Asset Manager clicked";
-}
-
-void PulseEngineMainWindow::on_physics_tools()
-{
-    /* #TODO: Implement physics tools */
-    qDebug() << "Tools -> Physics Tools clicked";
-}
-
-void PulseEngineMainWindow::on_ai_tools()
-{
-    /* #TODO: Implement AI tools */
-    qDebug() << "Tools -> AI Tools clicked";
-}
-
-void PulseEngineMainWindow::on_pathfinding_tools()
-{
-    /* #TODO: Implement pathfinding tools */
-    qDebug() << "Tools -> Pathfinding Tools clicked";
-}
-
-void PulseEngineMainWindow::on_console()
-{
-    /* #TODO: Implement console window */
-    qDebug() << "Tools -> Console clicked";
-}
-
-void PulseEngineMainWindow::on_log_viewer()
-{
-    /* #TODO: Implement log viewer */
-    qDebug() << "Tools -> Log Viewer clicked";
-}
-
-// ===========================================
-// MENU ACTION SLOTS - View Menu
-// ===========================================
-
-void PulseEngineMainWindow::on_toggle_hierarchy()
-{
-    /* #TODO: Toggle hierarchy panel visibility */
-    qDebug() << "View -> Toggle Hierarchy:" << toggle_hierarchy_action->isChecked();
-}
-
-void PulseEngineMainWindow::on_toggle_inspector()
-{
-    /* #TODO: Toggle inspector panel visibility */
-    qDebug() << "View -> Toggle Inspector:" << toggle_inspector_action->isChecked();
-}
-
-void PulseEngineMainWindow::on_toggle_assets()
-{
-    /* #TODO: Toggle assets panel visibility */
-    qDebug() << "View -> Toggle Assets:" << toggle_assets_action->isChecked();
-}
-
-void PulseEngineMainWindow::on_toggle_console()
-{
-    /* #TODO: Toggle console panel visibility */
-    qDebug() << "View -> Toggle Console:" << toggle_console_action->isChecked();
-}
-
-void PulseEngineMainWindow::on_toggle_explorer()
-{
-    /* #TODO: Toggle explorer panel visibility */
-    qDebug() << "View -> Toggle Explorer:" << toggle_explorer_action->isChecked();
-}
-
-void PulseEngineMainWindow::on_toggle_fullscreen()
-{
-    /* #TODO: Implement fullscreen toggle */
-    if (fullscreen_action->isChecked()) {
-        showFullScreen();
-        qDebug() << "View -> Fullscreen: ON";
-    } else {
-        showNormal();
-        qDebug() << "View -> Fullscreen: OFF";
-    }
-}
-
-void PulseEngineMainWindow::on_default_layout()
-{
-    /* #TODO: Load default layout */
-    qDebug() << "View -> Layouts -> Default Layout clicked";
-}
-
-void PulseEngineMainWindow::on_coding_layout()
-{
-    /* #TODO: Load coding layout */
-    qDebug() << "View -> Layouts -> Coding Layout clicked";
-}
-
-void PulseEngineMainWindow::on_art_layout()
-{
-    /* #TODO: Load art layout */
-    qDebug() << "View -> Layouts -> Art Layout clicked";
-}
-
-void PulseEngineMainWindow::on_design_layout()
-{
-    /* #TODO: Load design layout */
-    qDebug() << "View -> Layouts -> Design Layout clicked";
-}
-
-void PulseEngineMainWindow::on_save_layout()
-{
-    /* #TODO: Save current layout */
-    qDebug() << "View -> Layouts -> Save Current Layout clicked";
-}
-
-void PulseEngineMainWindow::on_zoom_in()
-{
-    /* #TODO: Zoom in scene view */
-    qDebug() << "View -> Zoom In clicked";
-}
-
-void PulseEngineMainWindow::on_zoom_out()
-{
-    /* #TODO: Zoom out scene view */
-    qDebug() << "View -> Zoom Out clicked";
-}
-
-void PulseEngineMainWindow::on_zoom_reset()
-{
-    /* #TODO: Reset zoom to default */
-    qDebug() << "View -> Reset Zoom clicked";
-}
-
-void PulseEngineMainWindow::on_frame_selected()
-{
-    /* #TODO: Frame selected object in view */
-    qDebug() << "View -> Frame Selected clicked";
-}
-
-void PulseEngineMainWindow::on_toggle_grid()
-{
-    /* #TODO: Toggle grid visibility */
-    qDebug() << "View -> Show Grid:" << show_grid_action->isChecked();
-}
-
-void PulseEngineMainWindow::on_toggle_gizmos()
-{
-    /* #TODO: Toggle gizmos visibility */
-    qDebug() << "View -> Show Gizmos:" << show_gizmos_action->isChecked();
-}
-
-void PulseEngineMainWindow::on_perspective_camera()
-{
-    /* #TODO: Switch to perspective camera */
-    perspective_camera_action->setChecked(true);
-    orthographic_camera_action->setChecked(false);
-    qDebug() << "View -> Camera -> Perspective";
-}
-
-void PulseEngineMainWindow::on_orthographic_camera()
-{
-    /* #TODO: Switch to orthographic camera */
-    orthographic_camera_action->setChecked(true);
-    perspective_camera_action->setChecked(false);
-    qDebug() << "View -> Camera -> Orthographic";
-}
-
-void PulseEngineMainWindow::on_top_view()
-{
-    /* #TODO: Switch to top view */
-    qDebug() << "View -> Camera -> Top View clicked";
-}
-
-void PulseEngineMainWindow::on_front_view()
-{
-    /* #TODO: Switch to front view */
-    qDebug() << "View -> Camera -> Front View clicked";
-}
-
-void PulseEngineMainWindow::on_side_view()
-{
-    /* #TODO: Switch to side view */
-    qDebug() << "View -> Camera -> Side View clicked";
-}
-
-// ===========================================
-// TOOLBAR ACTIONS
-// ===========================================
-
-void PulseEngineMainWindow::on_toolbar_edit()
-{
-    /* #TODO: Implement edit mode */
-    qDebug() << "Toolbar -> Edit clicked";
-}
-
-void PulseEngineMainWindow::on_toolbar_search()
-{
-    /* #TODO: Implement search functionality */
-    qDebug() << "Toolbar -> Search clicked";
-}
-
-void PulseEngineMainWindow::on_toolbar_play()
-{
-    /* #TODO: Implement play/run scene */
-    qDebug() << "Toolbar -> Play clicked";
-}
-
-void PulseEngineMainWindow::on_toolbar_settings()
-{
-    /* #TODO: Open settings */
-    qDebug() << "Toolbar -> Settings clicked";
-}
-
-void PulseEngineMainWindow::on_toolbar_tools()
-{
-    /* #TODO: Open tools menu */
-    qDebug() << "Toolbar -> Tools clicked";
-}
-
-// ===========================================
-// SCENE VIEW TOOLBAR ACTIONS
-// ===========================================
-
-void PulseEngineMainWindow::on_scene_edit()
-{
-    /* #TODO: Implement scene edit mode */
-    qDebug() << "Scene Toolbar -> Edit clicked";
-}
-
-void PulseEngineMainWindow::on_scene_zoom()
-{
-    /* #TODO: Implement scene zoom tool */
-    qDebug() << "Scene Toolbar -> Zoom clicked";
-}
-
-void PulseEngineMainWindow::on_scene_filter()
-{
-    /* #TODO: Implement scene filter */
-    qDebug() << "Scene Toolbar -> Filter clicked";
-}
-
-void PulseEngineMainWindow::on_scene_settings()
-{
-    /* #TODO: Implement scene settings */
-    qDebug() << "Scene Toolbar -> Settings clicked";
-}
-
-void PulseEngineMainWindow::on_scene_transform()
-{
-    /* #TODO: Implement transform tool */
-    qDebug() << "Scene Toolbar -> Transform clicked";
-}
-
-void PulseEngineMainWindow::on_scene_view()
-{
-    /* #TODO: Switch to scene view */
-    qDebug() << "Scene Toolbar -> Scene View clicked";
-}
-
-void PulseEngineMainWindow::on_2d_view()
-{
-    /* #TODO: Switch to 2D view */
-    qDebug() << "Scene Toolbar -> 2D clicked";
-}
-
-void PulseEngineMainWindow::on_view_options()
-{
-    /* #TODO: Open view options */
-    qDebug() << "Scene Toolbar -> Options clicked";
-}
-
-void PulseEngineMainWindow::on_move_tool()
-{
-    /* #TODO: Activate move tool */
-    qDebug() << "Scene Toolbar -> Move clicked";
-}
-
-void PulseEngineMainWindow::on_rotate_tool()
-{
-    /* #TODO: Activate rotate tool */
-    qDebug() << "Scene Toolbar -> Rotate clicked";
-}
-
-void PulseEngineMainWindow::on_scale_tool()
-{
-    /* #TODO: Activate scale tool */
-    qDebug() << "Scene Toolbar -> Scale clicked";
-}
-
-void PulseEngineMainWindow::on_grid_tool()
-{
-    /* #TODO: Toggle grid tool */
-    qDebug() << "Scene Toolbar -> Grid clicked";
-}
-
-void PulseEngineMainWindow::on_snap_tool()
-{
-    /* #TODO: Toggle snap tool */
-    qDebug() << "Scene Toolbar -> Snap clicked";
-}
-
-void PulseEngineMainWindow::on_camera_tool()
-{
-    /* #TODO: Camera tool options */
-    qDebug() << "Scene Toolbar -> Camera clicked";
-}
-
-void PulseEngineMainWindow::on_render_tool()
-{
-    /* #TODO: Render options */
-    qDebug() << "Scene Toolbar -> Render clicked";
-}
-
-void PulseEngineMainWindow::on_view_tool()
-{
-    /* #TODO: View tool options */
-    qDebug() << "Scene Toolbar -> View clicked";
-}
-
-// ===========================================
-// EXPLORER TOOLBAR ACTIONS
-// ===========================================
-
-void PulseEngineMainWindow::on_explorer_copy()
-{
-    /* #TODO: Copy selected asset */
-    qDebug() << "Explorer -> Copy clicked";
-}
-
-void PulseEngineMainWindow::on_explorer_open()
-{
-    /* #TODO: Open selected asset */
-    qDebug() << "Explorer -> Open clicked";
-}
-
-void PulseEngineMainWindow::on_explorer_back()
-{
-    /* #TODO: Navigate back in explorer */
-    qDebug() << "Explorer -> Back clicked";
-}
-
-void PulseEngineMainWindow::on_explorer_refresh()
-{
-    /* #TODO: Refresh explorer view */
-    qDebug() << "Explorer -> Refresh clicked";
-}
-
-void PulseEngineMainWindow::on_explorer_filter()
-{
-    /* #TODO: Filter explorer assets */
-    qDebug() << "Explorer -> Filter clicked";
-}
-
-void PulseEngineMainWindow::on_explorer_clear()
-{
-    /* #TODO: Clear selection */
-    qDebug() << "Explorer -> Clear clicked";
-}
-
-void PulseEngineMainWindow::on_explorer_preview()
-{
-    /* #TODO: Toggle preview mode */
-    qDebug() << "Explorer -> Preview clicked";
-}
-
-void PulseEngineMainWindow::on_explorer_delete()
-{
-    /* #TODO: Delete selected asset */
-    qDebug() << "Explorer -> Delete clicked";
-}
-
-void PulseEngineMainWindow::on_explorer_show()
-{
-    /* #TODO: Show asset options */
-    qDebug() << "Explorer -> Show clicked";
-}
-
-void PulseEngineMainWindow::on_explorer_menu()
-{
-    /* #TODO: Open context menu */
-    qDebug() << "Explorer -> Menu clicked";
-}
-
-void PulseEngineMainWindow::on_explorer_dropdown()
-{
-    /* #TODO: Open dropdown menu */
-    qDebug() << "Explorer -> Dropdown clicked";
-}
-
-void PulseEngineMainWindow::on_explorer_audio()
-{
-    /* #TODO: Audio tools */
-    qDebug() << "Explorer -> Audio clicked";
-}
-
-void PulseEngineMainWindow::on_explorer_display()
-{
-    /* #TODO: Display options */
-    qDebug() << "Explorer -> Display clicked";
-}
-
+    camera_menu->addAction("Top View", this, &PulseEngineMainWindow::on_top_view, QKeySequence("Numpad 7"));
+    camera_menu->addAction("Front View", this, &PulseEngineMainWindow::on_front_view, QKeySequence("Numpad 1"));
+    camera_menu->addAction("Side View", this, &PulseEngineMainWindow::on_side_view, QKeySequence("Numpad 3"));
+}
+
+void PulseEngineMainWindow::on_new_project() {} void PulseEngineMainWindow::on_new_scene() {}
+void PulseEngineMainWindow::on_open_project() {}
+void PulseEngineMainWindow::on_save_as() {}
+void PulseEngineMainWindow::on_export() {} void PulseEngineMainWindow::on_import() {}
+void PulseEngineMainWindow::on_close_project() {}
+void PulseEngineMainWindow::on_exit() { close(); }
+void PulseEngineMainWindow::on_undo() {} void PulseEngineMainWindow::on_redo() {}
+void PulseEngineMainWindow::on_cut() {} void PulseEngineMainWindow::on_copy() {}
+void PulseEngineMainWindow::on_paste() {} void PulseEngineMainWindow::on_delete() {}
+void PulseEngineMainWindow::on_duplicate() {} void PulseEngineMainWindow::on_select_all() {}
+void PulseEngineMainWindow::on_invert_selection() {} void PulseEngineMainWindow::on_preferences() {}
+void PulseEngineMainWindow::on_edit_settings() {} void PulseEngineMainWindow::on_project_settings() {}
+void PulseEngineMainWindow::on_editor_settings() {} void PulseEngineMainWindow::on_graphics_settings() {}
+void PulseEngineMainWindow::on_rendering_settings() {} void PulseEngineMainWindow::on_input_settings() {}
+void PulseEngineMainWindow::on_controls_settings() {} void PulseEngineMainWindow::on_script_editor() {}
+void PulseEngineMainWindow::on_debugger() {} void PulseEngineMainWindow::on_asset_manager() {}
+void PulseEngineMainWindow::on_physics_tools() {} void PulseEngineMainWindow::on_ai_tools() {}
+void PulseEngineMainWindow::on_pathfinding_tools() {} void PulseEngineMainWindow::on_console() {}
+void PulseEngineMainWindow::on_log_viewer() {}
+void PulseEngineMainWindow::on_toggle_hierarchy() {} void PulseEngineMainWindow::on_toggle_inspector() {}
+void PulseEngineMainWindow::on_toggle_assets() {} void PulseEngineMainWindow::on_toggle_console() {}
+void PulseEngineMainWindow::on_toggle_explorer() {} void PulseEngineMainWindow::on_toggle_fullscreen() {}
+void PulseEngineMainWindow::on_default_layout() {} void PulseEngineMainWindow::on_coding_layout() {}
+void PulseEngineMainWindow::on_art_layout() {} void PulseEngineMainWindow::on_design_layout() {}
+void PulseEngineMainWindow::on_save_layout() {} void PulseEngineMainWindow::on_zoom_in() {}
+void PulseEngineMainWindow::on_zoom_out() {} void PulseEngineMainWindow::on_zoom_reset() {}
+void PulseEngineMainWindow::on_frame_selected() {} void PulseEngineMainWindow::on_toggle_grid() {}
+void PulseEngineMainWindow::on_toggle_gizmos() {} void PulseEngineMainWindow::on_perspective_camera() {}
+void PulseEngineMainWindow::on_orthographic_camera() {} void PulseEngineMainWindow::on_top_view() {}
+void PulseEngineMainWindow::on_front_view() {} void PulseEngineMainWindow::on_side_view() {}
+void PulseEngineMainWindow::on_toolbar_edit() {} void PulseEngineMainWindow::on_toolbar_search() {}
+void PulseEngineMainWindow::on_toolbar_play() {} void PulseEngineMainWindow::on_toolbar_settings() {}
+void PulseEngineMainWindow::on_toolbar_tools() {} void PulseEngineMainWindow::on_scene_edit() {}
+void PulseEngineMainWindow::on_scene_zoom() {} void PulseEngineMainWindow::on_scene_filter() {}
+void PulseEngineMainWindow::on_scene_settings() {} void PulseEngineMainWindow::on_scene_transform() {}
+void PulseEngineMainWindow::on_scene_view() {} void PulseEngineMainWindow::on_2d_view() {}
+void PulseEngineMainWindow::on_view_options() {} void PulseEngineMainWindow::on_move_tool() {}
+void PulseEngineMainWindow::on_rotate_tool() {} void PulseEngineMainWindow::on_scale_tool() {}
+void PulseEngineMainWindow::on_grid_tool() {} void PulseEngineMainWindow::on_snap_tool() {}
+void PulseEngineMainWindow::on_camera_tool() {} void PulseEngineMainWindow::on_render_tool() {}
+void PulseEngineMainWindow::on_view_tool() {} void PulseEngineMainWindow::on_explorer_copy() {}
+void PulseEngineMainWindow::on_explorer_open() {} void PulseEngineMainWindow::on_explorer_back() {}
+void PulseEngineMainWindow::on_explorer_refresh() {} void PulseEngineMainWindow::on_explorer_filter() {}
+void PulseEngineMainWindow::on_explorer_clear() {} void PulseEngineMainWindow::on_explorer_preview() {}
+void PulseEngineMainWindow::on_explorer_delete() {} void PulseEngineMainWindow::on_explorer_show() {}
+void PulseEngineMainWindow::on_explorer_menu() {} void PulseEngineMainWindow::on_explorer_dropdown() {}
+void PulseEngineMainWindow::on_explorer_audio() {} void PulseEngineMainWindow::on_explorer_display() {}
