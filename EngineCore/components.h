@@ -17,9 +17,16 @@ struct TransformComponent {
 
 struct SpriteComponent {
     std::optional<sf::Sprite> Sprite;
-
     std::string TexturePath;
     bool TextureLoaded = false;
+
+    SpriteComponent() = default;
+    explicit SpriteComponent(const sf::Texture& texture)
+        : Sprite(texture), TextureLoaded(true) {}
+};
+
+struct NativeScriptComponent {
+    std::string FilePath;
 };
 
 #endif

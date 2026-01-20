@@ -1,6 +1,8 @@
 #include "mainwindow.h"
 #include "SFMLWidget.h"
 #include "../EngineCore/components.h"
+#include "StartProject.h"
+#include "ScriptEditor.h"
 
 #include <QApplication>
 #include <QDoubleSpinBox>
@@ -8,13 +10,16 @@
 #include <QFormLayout>
 #include <QPushButton>
 #include <QHeaderView>
-#include <QMessageBox>
 #include <QMenuBar>
+#include <QMessageBox>
 #include <QDebug>
 #include <QFileDialog>
+#include <QToolBar>
+#include <QComboBox>
+#include <QMenu>
+#include <QInputDialog>
 #include <filesystem>
-#include <QGroupBox>
-#include <QLabel>
+#include <fstream>
 
 namespace fs = std::filesystem;
 
@@ -26,6 +31,7 @@ PulseEngineMainWindow::PulseEngineMainWindow(const std::string& projectPath, QWi
 
     setup_dark_theme();
     create_menu_bar();
+    create_toolbar();
 
     QWidget *central_widget = new QWidget(this);
     setCentralWidget(central_widget);
@@ -48,21 +54,15 @@ PulseEngineMainWindow::PulseEngineMainWindow(const std::string& projectPath, QWi
     if (m_sfmlWidget) {
         connect(m_sfmlWidget, &SFMLWidget::entitySelected, this, &PulseEngineMainWindow::on_scene_entity_selected);
 
-        // ЛОГИКА ЗАГРУЗКИ ПРОЕКТА
         if (!m_projectPath.empty()) {
             std::string scenePath = m_projectPath + "/scene.json";
-
-            // Если сцена уже есть на диске - грузим её
             if (fs::exists(scenePath)) {
                 m_sfmlWidget->GetScene().LoadScene(scenePath);
-                qDebug() << "Loaded scene from:" << QString::fromStdString(scenePath);
             } else {
-                // Если нет - создаем дефолтный куб
                 m_sfmlWidget->GetScene().CreateEntity("Cube Object");
             }
             setWindowTitle("Pulse Engine - " + QString::fromStdString(fs::path(m_projectPath).filename().string()));
         } else {
-            // Если запустили без проекта
             m_sfmlWidget->GetScene().CreateEntity("Cube Object");
         }
 
@@ -72,6 +72,20 @@ PulseEngineMainWindow::PulseEngineMainWindow(const std::string& projectPath, QWi
 
 PulseEngineMainWindow::~PulseEngineMainWindow()
 {
+}
+
+void PulseEngineMainWindow::create_toolbar()
+{
+    QToolBar* toolbar = addToolBar("Main Toolbar");
+    toolbar->setMovable(false);
+
+    QAction* playAction = toolbar->addAction("Play");
+    playAction->setIcon(QIcon::fromTheme("media-playback-start"));
+    connect(playAction, &QAction::triggered, this, &PulseEngineMainWindow::on_play_scene);
+
+    QAction* stopAction = toolbar->addAction("Stop");
+    stopAction->setIcon(QIcon::fromTheme("media-playback-stop"));
+    connect(stopAction, &QAction::triggered, this, &PulseEngineMainWindow::on_stop_scene);
 }
 
 QWidget* PulseEngineMainWindow::create_left_panel()
@@ -89,8 +103,8 @@ QWidget* PulseEngineMainWindow::create_left_panel()
     m_hierarchyTree->setIndentation(10);
     connect(m_hierarchyTree, &QTreeWidget::itemSelectionChanged, this, &PulseEngineMainWindow::on_hierarchy_select);
 
-    QPushButton* addEntityBtn = new QPushButton("Create Entity");
-    connect(addEntityBtn, &QPushButton::clicked, this, &PulseEngineMainWindow::on_add_entity);
+    QPushButton* addEntityBtn = new QPushButton("Add Entity");
+    connect(addEntityBtn, &QPushButton::clicked, this, &PulseEngineMainWindow::on_add_entity_click);
 
     hierarchy_layout->addWidget(addEntityBtn);
     hierarchy_layout->addWidget(m_hierarchyTree);
@@ -114,12 +128,29 @@ QWidget* PulseEngineMainWindow::create_left_panel()
     connect(m_scaleY, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &PulseEngineMainWindow::on_inspector_change);
     connect(m_rotation, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &PulseEngineMainWindow::on_inspector_change);
 
+    m_scriptPathEdit = new QLineEdit();
+    m_scriptPathEdit->setReadOnly(true);
+
+    m_scriptBrowseBtn = new QPushButton("...");
+    m_scriptBrowseBtn->setFixedWidth(30);
+    connect(m_scriptBrowseBtn, &QPushButton::clicked, this, &PulseEngineMainWindow::on_add_script_clicked);
+
+    m_scriptEditBtn = new QPushButton("Edit");
+    m_scriptEditBtn->setFixedWidth(40);
+    connect(m_scriptEditBtn, &QPushButton::clicked, this, &PulseEngineMainWindow::on_edit_script_clicked);
+
+    QHBoxLayout* scriptLayout = new QHBoxLayout();
+    scriptLayout->addWidget(m_scriptPathEdit);
+    scriptLayout->addWidget(m_scriptBrowseBtn);
+    scriptLayout->addWidget(m_scriptEditBtn);
+
     inspector_layout->addRow("Name", m_tagEdit);
     inspector_layout->addRow("Pos X", m_posX);
     inspector_layout->addRow("Pos Y", m_posY);
     inspector_layout->addRow("Scale X", m_scaleX);
     inspector_layout->addRow("Scale Y", m_scaleY);
     inspector_layout->addRow("Rotation", m_rotation);
+    inspector_layout->addRow("Script", scriptLayout);
 
     layout->addWidget(hierarchy_group);
     layout->addWidget(inspector_group);
@@ -142,9 +173,36 @@ QSplitter* PulseEngineMainWindow::create_center_panel()
 
     QWidget *explorer_widget = new QWidget();
     QVBoxLayout *explorer_layout = new QVBoxLayout(explorer_widget);
-    QLabel *explorer_label = new QLabel("Explorer / Assets");
-    explorer_label->setAlignment(Qt::AlignCenter);
+    explorer_layout->setContentsMargins(0, 0, 0, 0);
+
+    QLabel *explorer_label = new QLabel("Project Files");
+    explorer_label->setStyleSheet("padding: 5px; background: #111; color: #888; font-weight: bold;");
     explorer_layout->addWidget(explorer_label);
+
+    m_fileModel = new QFileSystemModel(this);
+    if (!m_projectPath.empty()) {
+        m_fileModel->setRootPath(QString::fromStdString(m_projectPath));
+    } else {
+        m_fileModel->setRootPath(QDir::homePath());
+    }
+
+    m_fileView = new QListView();
+    m_fileView->setModel(m_fileModel);
+
+    if (!m_projectPath.empty()) {
+        m_fileView->setRootIndex(m_fileModel->index(QString::fromStdString(m_projectPath)));
+    } else {
+        m_fileView->setRootIndex(m_fileModel->index(QDir::homePath()));
+    }
+
+    m_fileView->setViewMode(QListView::IconMode);
+    m_fileView->setIconSize(QSize(64, 64));
+    m_fileView->setGridSize(QSize(80, 80));
+    m_fileView->setResizeMode(QListView::Adjust);
+    m_fileView->setUniformItemSizes(true);
+    m_fileView->setMovement(QListView::Static);
+
+    explorer_layout->addWidget(m_fileView);
     center_splitter->addWidget(explorer_widget);
 
     center_splitter->setSizes({600, 300});
@@ -169,11 +227,89 @@ void PulseEngineMainWindow::RefreshHierarchy()
     }
 }
 
-void PulseEngineMainWindow::on_add_entity()
+void PulseEngineMainWindow::on_add_entity_click()
+{
+    QMenu menu(this);
+    menu.addAction("Cube (Preset)", this, &PulseEngineMainWindow::on_add_primitive_cube);
+    menu.addAction("Custom Object...", this, &PulseEngineMainWindow::on_add_custom_object);
+    menu.exec(QCursor::pos());
+}
+
+void PulseEngineMainWindow::on_add_primitive_cube()
 {
     if (!m_sfmlWidget) return;
-    m_sfmlWidget->GetScene().CreateEntity("New Entity");
+    m_sfmlWidget->GetScene().CreateEntity("Cube");
     RefreshHierarchy();
+}
+
+void PulseEngineMainWindow::on_add_custom_object()
+{
+    if (m_projectPath.empty()) {
+        QMessageBox::warning(this, "Error", "Save or create a project first!");
+        return;
+    }
+
+    QString fileName = QFileDialog::getOpenFileName(this, "Select Image", QDir::homePath(), "Images (*.png *.jpg *.jpeg)");
+    if (fileName.isEmpty()) return;
+
+    fs::path sourcePath(fileName.toStdString());
+    fs::path destPath = fs::path(m_projectPath) / sourcePath.filename();
+
+    try {
+        if (!fs::exists(destPath)) {
+            fs::copy(sourcePath, destPath);
+        }
+    } catch (fs::filesystem_error& e) {
+        QMessageBox::critical(this, "Error", QString::fromStdString(e.what()));
+        return;
+    }
+
+    m_sfmlWidget->GetScene().CreateEntityWithTexture(sourcePath.stem().string(), destPath.string());
+    RefreshHierarchy();
+}
+
+void PulseEngineMainWindow::on_add_script_clicked()
+{
+    if (m_selectedEntity == entt::null || !m_sfmlWidget) return;
+
+    QString fileName = QFileDialog::getOpenFileName(this, "Select Script", QString::fromStdString(m_projectPath), "Pulse Scripts (*.pulse *.txt)");
+    if (!fileName.isEmpty()) {
+        auto& registry = m_sfmlWidget->GetScene().GetRegistry();
+        auto& script = registry.get_or_emplace<NativeScriptComponent>(m_selectedEntity);
+        script.FilePath = fileName.toStdString();
+        UpdateInspector();
+    }
+}
+
+void PulseEngineMainWindow::on_create_new_script()
+{
+    if (m_projectPath.empty()) {
+        QMessageBox::warning(this, "Error", "Project not saved!");
+        return;
+    }
+
+    bool ok;
+    QString text = QInputDialog::getText(this, "New Script", "Script Name:", QLineEdit::Normal, "NewScript", &ok);
+    if (ok && !text.isEmpty()) {
+        std::string filename = text.toStdString();
+        if (filename.find(".pulse") == std::string::npos) filename += ".pulse";
+
+        fs::path fullPath = fs::path(m_projectPath) / filename;
+        std::ofstream outfile(fullPath);
+        outfile.close();
+
+        ScriptEditor* editor = new ScriptEditor(fullPath.string(), this);
+        editor->show();
+    }
+}
+
+void PulseEngineMainWindow::on_edit_script_clicked()
+{
+    std::string path = m_scriptPathEdit->text().toStdString();
+    if (!path.empty() && fs::exists(path)) {
+        ScriptEditor* editor = new ScriptEditor(path, this);
+        editor->show();
+    }
 }
 
 void PulseEngineMainWindow::on_hierarchy_select()
@@ -208,11 +344,12 @@ void PulseEngineMainWindow::UpdateInspector()
 {
     if (m_selectedEntity == entt::null) {
         m_tagEdit->clear();
-        m_posX->blockSignals(true); m_posX->setValue(0); m_posX->blockSignals(false);
-        m_posY->blockSignals(true); m_posY->setValue(0); m_posY->blockSignals(false);
-        m_scaleX->blockSignals(true); m_scaleX->setValue(1); m_scaleX->blockSignals(false);
-        m_scaleY->blockSignals(true); m_scaleY->setValue(1); m_scaleY->blockSignals(false);
-        m_rotation->blockSignals(true); m_rotation->setValue(0); m_rotation->blockSignals(false);
+        m_posX->setValue(0);
+        m_posY->setValue(0);
+        m_scaleX->setValue(1);
+        m_scaleY->setValue(1);
+        m_rotation->setValue(0);
+        m_scriptPathEdit->clear();
         return;
     }
 
@@ -225,12 +362,17 @@ void PulseEngineMainWindow::UpdateInspector()
 
     if (registry.all_of<TransformComponent>(m_selectedEntity)) {
         auto& tc = registry.get<TransformComponent>(m_selectedEntity);
-
         m_posX->blockSignals(true); m_posX->setValue(tc.Position.x); m_posX->blockSignals(false);
         m_posY->blockSignals(true); m_posY->setValue(tc.Position.y); m_posY->blockSignals(false);
         m_scaleX->blockSignals(true); m_scaleX->setValue(tc.Scale.x); m_scaleX->blockSignals(false);
         m_scaleY->blockSignals(true); m_scaleY->setValue(tc.Scale.y); m_scaleY->blockSignals(false);
         m_rotation->blockSignals(true); m_rotation->setValue(tc.Rotation); m_rotation->blockSignals(false);
+    }
+
+    if (registry.all_of<NativeScriptComponent>(m_selectedEntity)) {
+        m_scriptPathEdit->setText(QString::fromStdString(registry.get<NativeScriptComponent>(m_selectedEntity).FilePath));
+    } else {
+        m_scriptPathEdit->clear();
     }
 }
 
@@ -241,13 +383,9 @@ void PulseEngineMainWindow::on_inspector_change()
     auto& registry = m_sfmlWidget->GetScene().GetRegistry();
 
     if (registry.all_of<TagComponent>(m_selectedEntity)) {
-        std::string newTag = m_tagEdit->text().toStdString();
-        if (registry.get<TagComponent>(m_selectedEntity).Tag != newTag) {
-            registry.get<TagComponent>(m_selectedEntity).Tag = newTag;
-
-            auto items = m_hierarchyTree->selectedItems();
-            if(!items.isEmpty()) items[0]->setText(0, m_tagEdit->text());
-        }
+        registry.get<TagComponent>(m_selectedEntity).Tag = m_tagEdit->text().toStdString();
+        auto items = m_hierarchyTree->selectedItems();
+        if(!items.isEmpty()) items[0]->setText(0, m_tagEdit->text());
     }
 
     if (registry.all_of<TransformComponent>(m_selectedEntity)) {
@@ -260,14 +398,25 @@ void PulseEngineMainWindow::on_inspector_change()
     }
 }
 
+void PulseEngineMainWindow::on_play_scene() {
+    if(m_sfmlWidget) m_sfmlWidget->GetScene().StartRuntime();
+}
+
+void PulseEngineMainWindow::on_stop_scene() {
+    if(m_sfmlWidget) {
+        m_sfmlWidget->GetScene().StopRuntime();
+        RefreshHierarchy();
+        UpdateInspector();
+    }
+}
+
 void PulseEngineMainWindow::on_save()
 {
     if (!m_sfmlWidget) return;
-
     if (!m_projectPath.empty()) {
         std::string sceneFile = m_projectPath + "/scene.json";
         m_sfmlWidget->GetScene().SaveScene(sceneFile);
-        QMessageBox::information(this, "Pulse Engine", "Project saved successfully!");
+        QMessageBox::information(this, "Pulse Engine", "Project saved!");
     } else {
         on_save_as();
     }
@@ -282,18 +431,64 @@ void PulseEngineMainWindow::on_save_as()
     }
 }
 
-void PulseEngineMainWindow::on_open_scene()
-{
-    if (!m_sfmlWidget) return;
-    QString fileName = QFileDialog::getOpenFileName(this, "Open Scene", "", "JSON Files (*.json)");
-    if (!fileName.isEmpty()) {
-        m_sfmlWidget->GetScene().LoadScene(fileName.toStdString());
-        RefreshHierarchy();
-    }
+void PulseEngineMainWindow::on_new_project() {
+    StartProject* start = new StartProject();
+    this->close();
+    start->show();
 }
 
-void PulseEngineMainWindow::setup_dark_theme()
-{
+void PulseEngineMainWindow::on_open_project() {
+    StartProject* start = new StartProject();
+    this->close();
+    start->show();
+}
+
+void PulseEngineMainWindow::on_new_scene() {} void PulseEngineMainWindow::on_open_scene() {}
+void PulseEngineMainWindow::on_export() {} void PulseEngineMainWindow::on_import() {}
+void PulseEngineMainWindow::on_close_project() {} void PulseEngineMainWindow::on_exit() { close(); }
+void PulseEngineMainWindow::on_undo() {} void PulseEngineMainWindow::on_redo() {}
+void PulseEngineMainWindow::on_cut() {} void PulseEngineMainWindow::on_copy() {}
+void PulseEngineMainWindow::on_paste() {} void PulseEngineMainWindow::on_delete() {}
+void PulseEngineMainWindow::on_duplicate() {} void PulseEngineMainWindow::on_select_all() {}
+void PulseEngineMainWindow::on_invert_selection() {} void PulseEngineMainWindow::on_preferences() {}
+void PulseEngineMainWindow::on_edit_settings() {} void PulseEngineMainWindow::on_project_settings() {}
+void PulseEngineMainWindow::on_editor_settings() {} void PulseEngineMainWindow::on_graphics_settings() {}
+void PulseEngineMainWindow::on_rendering_settings() {} void PulseEngineMainWindow::on_input_settings() {}
+void PulseEngineMainWindow::on_controls_settings() {} void PulseEngineMainWindow::on_script_editor() {}
+void PulseEngineMainWindow::on_debugger() {} void PulseEngineMainWindow::on_asset_manager() {}
+void PulseEngineMainWindow::on_physics_tools() {} void PulseEngineMainWindow::on_ai_tools() {}
+void PulseEngineMainWindow::on_pathfinding_tools() {} void PulseEngineMainWindow::on_console() {}
+void PulseEngineMainWindow::on_log_viewer() {} void PulseEngineMainWindow::on_toggle_hierarchy() {}
+void PulseEngineMainWindow::on_toggle_inspector() {} void PulseEngineMainWindow::on_toggle_assets() {}
+void PulseEngineMainWindow::on_toggle_console() {} void PulseEngineMainWindow::on_toggle_explorer() {}
+void PulseEngineMainWindow::on_toggle_fullscreen() {} void PulseEngineMainWindow::on_default_layout() {}
+void PulseEngineMainWindow::on_coding_layout() {} void PulseEngineMainWindow::on_art_layout() {}
+void PulseEngineMainWindow::on_design_layout() {} void PulseEngineMainWindow::on_save_layout() {}
+void PulseEngineMainWindow::on_zoom_in() {} void PulseEngineMainWindow::on_zoom_out() {}
+void PulseEngineMainWindow::on_zoom_reset() {} void PulseEngineMainWindow::on_frame_selected() {}
+void PulseEngineMainWindow::on_toggle_grid() {} void PulseEngineMainWindow::on_toggle_gizmos() {}
+void PulseEngineMainWindow::on_perspective_camera() {} void PulseEngineMainWindow::on_orthographic_camera() {}
+void PulseEngineMainWindow::on_top_view() {} void PulseEngineMainWindow::on_front_view() {}
+void PulseEngineMainWindow::on_side_view() {} void PulseEngineMainWindow::on_toolbar_edit() {}
+void PulseEngineMainWindow::on_toolbar_search() {} void PulseEngineMainWindow::on_toolbar_play() {}
+void PulseEngineMainWindow::on_toolbar_settings() {} void PulseEngineMainWindow::on_toolbar_tools() {}
+void PulseEngineMainWindow::on_scene_edit() {} void PulseEngineMainWindow::on_scene_zoom() {}
+void PulseEngineMainWindow::on_scene_filter() {} void PulseEngineMainWindow::on_scene_settings() {}
+void PulseEngineMainWindow::on_scene_transform() {} void PulseEngineMainWindow::on_scene_view() {}
+void PulseEngineMainWindow::on_2d_view() {} void PulseEngineMainWindow::on_view_options() {}
+void PulseEngineMainWindow::on_move_tool() {} void PulseEngineMainWindow::on_rotate_tool() {}
+void PulseEngineMainWindow::on_scale_tool() {} void PulseEngineMainWindow::on_grid_tool() {}
+void PulseEngineMainWindow::on_snap_tool() {} void PulseEngineMainWindow::on_camera_tool() {}
+void PulseEngineMainWindow::on_render_tool() {} void PulseEngineMainWindow::on_view_tool() {}
+void PulseEngineMainWindow::on_explorer_copy() {} void PulseEngineMainWindow::on_explorer_open() {}
+void PulseEngineMainWindow::on_explorer_back() {} void PulseEngineMainWindow::on_explorer_refresh() {}
+void PulseEngineMainWindow::on_explorer_filter() {} void PulseEngineMainWindow::on_explorer_clear() {}
+void PulseEngineMainWindow::on_explorer_preview() {} void PulseEngineMainWindow::on_explorer_delete() {}
+void PulseEngineMainWindow::on_explorer_show() {} void PulseEngineMainWindow::on_explorer_menu() {}
+void PulseEngineMainWindow::on_explorer_dropdown() {} void PulseEngineMainWindow::on_explorer_audio() {}
+void PulseEngineMainWindow::on_explorer_display() {}
+
+void PulseEngineMainWindow::setup_dark_theme() {
     QPalette dark_palette;
     dark_palette.setColor(QPalette::Window, QColor(5, 5, 5));
     dark_palette.setColor(QPalette::WindowText, QColor(255, 255, 255));
@@ -308,9 +503,7 @@ void PulseEngineMainWindow::setup_dark_theme()
     dark_palette.setColor(QPalette::Link, QColor(76, 214, 192));
     dark_palette.setColor(QPalette::Highlight, QColor(76, 214, 192));
     dark_palette.setColor(QPalette::HighlightedText, Qt::black);
-
     setPalette(dark_palette);
-
     setStyleSheet(R"(
         QMainWindow { background-color: #050505; font-family: 'Segoe UI', 'Roboto', sans-serif; }
         QTreeWidget { background-color: #0a0a0a; border: 1px solid #222; padding: 5px; font-size: 13px; }
@@ -328,6 +521,9 @@ void PulseEngineMainWindow::setup_dark_theme()
         QGroupBox { border: 1px solid #222; border-radius: 4px; margin-top: 15px; padding-top: 15px; color: #888; font-weight: bold; }
         QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 5px; color: #4cd6c0; background-color: #050505; }
         QSplitter::handle { background-color: #222; width: 1px; }
+        QListView { background-color: #0a0a0a; border: 1px solid #222; color: #ccc; }
+        QListView::item { padding: 5px; }
+        QListView::item:selected { background-color: #222; color: #4cd6c0; border: 1px solid #4cd6c0; }
     )");
 }
 
@@ -336,19 +532,12 @@ QWidget* PulseEngineMainWindow::create_logo_widget() {
     QHBoxLayout *logo_layout = new QHBoxLayout(logo_widget);
     logo_layout->setContentsMargins(10, 5, 10, 5);
     logo_layout->setSpacing(10);
-
     QLabel *logo_label = new QLabel();
     QPixmap logoPixmap("UI/resources/PulseEngineLogo.png");
-
-    if (logoPixmap.isNull()) {
-        logo_label->setText("Logo");
-    } else {
-        logo_label->setPixmap(logoPixmap.scaled(40, 40, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    }
-
+    if (logoPixmap.isNull()) { logo_label->setText("Logo"); }
+    else { logo_label->setPixmap(logoPixmap.scaled(40, 40, Qt::KeepAspectRatio, Qt::SmoothTransformation)); }
     QLabel *title_label = new QLabel("Pulse Engine");
     title_label->setStyleSheet("color: #5ab9ff; font-weight: bold; font-size: 16px;");
-
     logo_layout->addWidget(logo_label);
     logo_layout->addWidget(title_label);
     logo_layout->addStretch();
@@ -359,172 +548,13 @@ void PulseEngineMainWindow::create_menu_bar() {
     QMenuBar *menubar = menuBar();
     menubar->setNativeMenuBar(false);
     menubar->setCornerWidget(create_logo_widget(), Qt::TopLeftCorner);
-
     QMenu *file_menu = menubar->addMenu("File");
     file_menu->addAction("New Project", this, &PulseEngineMainWindow::on_new_project);
-    file_menu->addAction("New Scene", this, &PulseEngineMainWindow::on_new_scene);
-    file_menu->addSeparator();
     file_menu->addAction("Open Project", this, &PulseEngineMainWindow::on_open_project);
-    file_menu->addAction("Open Scene", this, &PulseEngineMainWindow::on_open_scene);
-    file_menu->addSeparator();
-    file_menu->addAction("Save", this, &PulseEngineMainWindow::on_save, QKeySequence("Ctrl+S"));
-    file_menu->addAction("Save As...", this, &PulseEngineMainWindow::on_save_as, QKeySequence("Ctrl+Shift+S"));
-    file_menu->addSeparator();
-    file_menu->addAction("Export", this, &PulseEngineMainWindow::on_export);
-    file_menu->addAction("Import", this, &PulseEngineMainWindow::on_import);
-    file_menu->addSeparator();
-    file_menu->addAction("Close Project", this, &PulseEngineMainWindow::on_close_project);
-    file_menu->addAction("Exit", this, &PulseEngineMainWindow::on_exit, QKeySequence("Ctrl+Q"));
-
-    QMenu *edit_menu = menubar->addMenu("Edit");
-    edit_menu->addAction("Undo", this, &PulseEngineMainWindow::on_undo, QKeySequence("Ctrl+Z"));
-    edit_menu->addAction("Redo", this, &PulseEngineMainWindow::on_redo, QKeySequence("Ctrl+Y"));
-    edit_menu->addSeparator();
-    edit_menu->addAction("Cut", this, &PulseEngineMainWindow::on_cut, QKeySequence("Ctrl+X"));
-    edit_menu->addAction("Copy", this, &PulseEngineMainWindow::on_copy, QKeySequence("Ctrl+C"));
-    edit_menu->addAction("Paste", this, &PulseEngineMainWindow::on_paste, QKeySequence("Ctrl+V"));
-    edit_menu->addAction("Delete", this, &PulseEngineMainWindow::on_delete, QKeySequence("Delete"));
-    edit_menu->addSeparator();
-    edit_menu->addAction("Duplicate", this, &PulseEngineMainWindow::on_duplicate, QKeySequence("Ctrl+D"));
-    edit_menu->addSeparator();
-    edit_menu->addAction("Select All", this, &PulseEngineMainWindow::on_select_all, QKeySequence("Ctrl+A"));
-    edit_menu->addAction("Invert Selection", this, &PulseEngineMainWindow::on_invert_selection, QKeySequence("Ctrl+I"));
-    edit_menu->addSeparator();
-    edit_menu->addAction("Preferences", this, &PulseEngineMainWindow::on_preferences, QKeySequence("Ctrl+,"));
-    edit_menu->addAction("Settings", this, &PulseEngineMainWindow::on_edit_settings);
-
-    QMenu *settings_menu = menubar->addMenu("Settings");
-    settings_menu->addAction("Project Settings", this, &PulseEngineMainWindow::on_project_settings);
-    settings_menu->addAction("Editor Settings", this, &PulseEngineMainWindow::on_editor_settings);
-    settings_menu->addSeparator();
-    settings_menu->addAction("Graphics Settings", this, &PulseEngineMainWindow::on_graphics_settings);
-    settings_menu->addAction("Rendering Settings", this, &PulseEngineMainWindow::on_rendering_settings);
-    settings_menu->addSeparator();
-    settings_menu->addAction("Input Settings", this, &PulseEngineMainWindow::on_input_settings);
-    settings_menu->addAction("Controls", this, &PulseEngineMainWindow::on_controls_settings);
-
+    file_menu->addAction("New Script", this, &PulseEngineMainWindow::on_create_new_script);
+    file_menu->addAction("Save", this, &PulseEngineMainWindow::on_save);
+    file_menu->addAction("Exit", this, &PulseEngineMainWindow::on_exit);
     QMenu *tools_menu = menubar->addMenu("Tools");
-    tools_menu->addAction("Script Editor", this, &PulseEngineMainWindow::on_script_editor);
-    tools_menu->addAction("Debugger", this, &PulseEngineMainWindow::on_debugger);
-    tools_menu->addSeparator();
-    tools_menu->addAction("Asset Manager", this, &PulseEngineMainWindow::on_asset_manager);
-    tools_menu->addSeparator();
-    tools_menu->addAction("Physics Tools", this, &PulseEngineMainWindow::on_physics_tools);
-    tools_menu->addAction("AI Tools", this, &PulseEngineMainWindow::on_ai_tools);
-    tools_menu->addAction("Pathfinding Tools", this, &PulseEngineMainWindow::on_pathfinding_tools);
-    tools_menu->addSeparator();
-    tools_menu->addAction("Console", this, &PulseEngineMainWindow::on_console);
-    tools_menu->addAction("Log Viewer", this, &PulseEngineMainWindow::on_log_viewer);
-
-    QMenu *view_menu = menubar->addMenu("View");
-    QMenu *panels_menu = view_menu->addMenu("Toggle Panels");
-
-    toggle_hierarchy_action = panels_menu->addAction("Hierarchy", this, &PulseEngineMainWindow::on_toggle_hierarchy);
-    toggle_hierarchy_action->setCheckable(true);
-    toggle_hierarchy_action->setChecked(true);
-
-    toggle_inspector_action = panels_menu->addAction("Inspector", this, &PulseEngineMainWindow::on_toggle_inspector);
-    toggle_inspector_action->setCheckable(true);
-    toggle_inspector_action->setChecked(true);
-
-    toggle_assets_action = panels_menu->addAction("Assets", this, &PulseEngineMainWindow::on_toggle_assets);
-    toggle_assets_action->setCheckable(true);
-    toggle_assets_action->setChecked(true);
-
-    toggle_console_action = panels_menu->addAction("Console", this, &PulseEngineMainWindow::on_toggle_console);
-    toggle_console_action->setCheckable(true);
-    toggle_console_action->setChecked(true);
-
-    toggle_explorer_action = panels_menu->addAction("Explorer", this, &PulseEngineMainWindow::on_toggle_explorer);
-    toggle_explorer_action->setCheckable(true);
-    toggle_explorer_action->setChecked(true);
-
-    view_menu->addSeparator();
-    fullscreen_action = view_menu->addAction("Fullscreen", this, &PulseEngineMainWindow::on_toggle_fullscreen, QKeySequence("F11"));
-    fullscreen_action->setCheckable(true);
-
-    QMenu *layouts_menu = view_menu->addMenu("Layouts");
-    layouts_menu->addAction("Default Layout", this, &PulseEngineMainWindow::on_default_layout);
-    layouts_menu->addAction("Coding Layout", this, &PulseEngineMainWindow::on_coding_layout);
-    layouts_menu->addAction("Art Layout", this, &PulseEngineMainWindow::on_art_layout);
-    layouts_menu->addAction("Design Layout", this, &PulseEngineMainWindow::on_design_layout);
-    layouts_menu->addSeparator();
-    layouts_menu->addAction("Save Current Layout", this, &PulseEngineMainWindow::on_save_layout);
-
-    view_menu->addSeparator();
-    QMenu *zoom_menu = view_menu->addMenu("Zoom");
-    zoom_menu->addAction("Zoom In", this, &PulseEngineMainWindow::on_zoom_in, QKeySequence("Ctrl++"));
-    zoom_menu->addAction("Zoom Out", this, &PulseEngineMainWindow::on_zoom_out, QKeySequence("Ctrl+-"));
-    zoom_menu->addAction("Reset Zoom", this, &PulseEngineMainWindow::on_zoom_reset, QKeySequence("Ctrl+0"));
-    view_menu->addAction("Frame Selected", this, &PulseEngineMainWindow::on_frame_selected, QKeySequence("F"));
-
-    view_menu->addSeparator();
-    show_grid_action = view_menu->addAction("Show Grid", this, &PulseEngineMainWindow::on_toggle_grid);
-    show_grid_action->setCheckable(true);
-    show_grid_action->setChecked(true);
-
-    show_gizmos_action = view_menu->addAction("Show Gizmos", this, &PulseEngineMainWindow::on_toggle_gizmos);
-    show_gizmos_action->setCheckable(true);
-    show_gizmos_action->setChecked(true);
-
-    view_menu->addSeparator();
-    QMenu *camera_menu = view_menu->addMenu("Camera");
-    perspective_camera_action = camera_menu->addAction("Perspective", this, &PulseEngineMainWindow::on_perspective_camera);
-    perspective_camera_action->setCheckable(true);
-    perspective_camera_action->setChecked(true);
-
-    orthographic_camera_action = camera_menu->addAction("Orthographic", this, &PulseEngineMainWindow::on_orthographic_camera);
-    orthographic_camera_action->setCheckable(true);
-
-    camera_menu->addSeparator();
-    camera_menu->addAction("Top View", this, &PulseEngineMainWindow::on_top_view, QKeySequence("Numpad 7"));
-    camera_menu->addAction("Front View", this, &PulseEngineMainWindow::on_front_view, QKeySequence("Numpad 1"));
-    camera_menu->addAction("Side View", this, &PulseEngineMainWindow::on_side_view, QKeySequence("Numpad 3"));
+    tools_menu->addAction("Play", this, &PulseEngineMainWindow::on_play_scene);
+    tools_menu->addAction("Stop", this, &PulseEngineMainWindow::on_stop_scene);
 }
-
-void PulseEngineMainWindow::on_new_project() {} void PulseEngineMainWindow::on_new_scene() {}
-void PulseEngineMainWindow::on_open_project() {}
-void PulseEngineMainWindow::on_export() {} void PulseEngineMainWindow::on_import() {}
-void PulseEngineMainWindow::on_close_project() {}
-void PulseEngineMainWindow::on_exit() { close(); }
-void PulseEngineMainWindow::on_undo() {} void PulseEngineMainWindow::on_redo() {}
-void PulseEngineMainWindow::on_cut() {} void PulseEngineMainWindow::on_copy() {}
-void PulseEngineMainWindow::on_paste() {} void PulseEngineMainWindow::on_delete() {}
-void PulseEngineMainWindow::on_duplicate() {} void PulseEngineMainWindow::on_select_all() {}
-void PulseEngineMainWindow::on_invert_selection() {} void PulseEngineMainWindow::on_preferences() {}
-void PulseEngineMainWindow::on_edit_settings() {} void PulseEngineMainWindow::on_project_settings() {}
-void PulseEngineMainWindow::on_editor_settings() {} void PulseEngineMainWindow::on_graphics_settings() {}
-void PulseEngineMainWindow::on_rendering_settings() {} void PulseEngineMainWindow::on_input_settings() {}
-void PulseEngineMainWindow::on_controls_settings() {} void PulseEngineMainWindow::on_script_editor() {}
-void PulseEngineMainWindow::on_debugger() {} void PulseEngineMainWindow::on_asset_manager() {}
-void PulseEngineMainWindow::on_physics_tools() {} void PulseEngineMainWindow::on_ai_tools() {}
-void PulseEngineMainWindow::on_pathfinding_tools() {} void PulseEngineMainWindow::on_console() {}
-void PulseEngineMainWindow::on_log_viewer() {}
-void PulseEngineMainWindow::on_toggle_hierarchy() {} void PulseEngineMainWindow::on_toggle_inspector() {}
-void PulseEngineMainWindow::on_toggle_assets() {} void PulseEngineMainWindow::on_toggle_console() {}
-void PulseEngineMainWindow::on_toggle_explorer() {} void PulseEngineMainWindow::on_toggle_fullscreen() {}
-void PulseEngineMainWindow::on_default_layout() {} void PulseEngineMainWindow::on_coding_layout() {}
-void PulseEngineMainWindow::on_art_layout() {} void PulseEngineMainWindow::on_design_layout() {}
-void PulseEngineMainWindow::on_save_layout() {} void PulseEngineMainWindow::on_zoom_in() {}
-void PulseEngineMainWindow::on_zoom_out() {} void PulseEngineMainWindow::on_zoom_reset() {}
-void PulseEngineMainWindow::on_frame_selected() {} void PulseEngineMainWindow::on_toggle_grid() {}
-void PulseEngineMainWindow::on_toggle_gizmos() {} void PulseEngineMainWindow::on_perspective_camera() {}
-void PulseEngineMainWindow::on_orthographic_camera() {} void PulseEngineMainWindow::on_top_view() {}
-void PulseEngineMainWindow::on_front_view() {} void PulseEngineMainWindow::on_side_view() {}
-void PulseEngineMainWindow::on_toolbar_edit() {} void PulseEngineMainWindow::on_toolbar_search() {}
-void PulseEngineMainWindow::on_toolbar_play() {} void PulseEngineMainWindow::on_toolbar_settings() {}
-void PulseEngineMainWindow::on_toolbar_tools() {} void PulseEngineMainWindow::on_scene_edit() {}
-void PulseEngineMainWindow::on_scene_zoom() {} void PulseEngineMainWindow::on_scene_filter() {}
-void PulseEngineMainWindow::on_scene_settings() {} void PulseEngineMainWindow::on_scene_transform() {}
-void PulseEngineMainWindow::on_scene_view() {} void PulseEngineMainWindow::on_2d_view() {}
-void PulseEngineMainWindow::on_view_options() {} void PulseEngineMainWindow::on_move_tool() {}
-void PulseEngineMainWindow::on_rotate_tool() {} void PulseEngineMainWindow::on_scale_tool() {}
-void PulseEngineMainWindow::on_grid_tool() {} void PulseEngineMainWindow::on_snap_tool() {}
-void PulseEngineMainWindow::on_camera_tool() {} void PulseEngineMainWindow::on_render_tool() {}
-void PulseEngineMainWindow::on_view_tool() {} void PulseEngineMainWindow::on_explorer_copy() {}
-void PulseEngineMainWindow::on_explorer_open() {} void PulseEngineMainWindow::on_explorer_back() {}
-void PulseEngineMainWindow::on_explorer_refresh() {} void PulseEngineMainWindow::on_explorer_filter() {}
-void PulseEngineMainWindow::on_explorer_clear() {} void PulseEngineMainWindow::on_explorer_preview() {}
-void PulseEngineMainWindow::on_explorer_delete() {} void PulseEngineMainWindow::on_explorer_show() {}
-void PulseEngineMainWindow::on_explorer_menu() {} void PulseEngineMainWindow::on_explorer_dropdown() {}
-void PulseEngineMainWindow::on_explorer_audio() {} void PulseEngineMainWindow::on_explorer_display() {}

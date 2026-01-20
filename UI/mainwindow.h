@@ -2,14 +2,18 @@
 #define PULSEENGINEMAINWINDOW_H
 
 #include <QMainWindow>
-#include <QSplitter>
 #include <QTreeWidget>
+#include <QFileSystemModel>
+#include <QListView>
+#include <QSplitter>
 #include <entt/entt.hpp>
 #include <string>
 
 class SFMLWidget;
 class QLineEdit;
 class QDoubleSpinBox;
+class QComboBox;
+class QPushButton;
 
 class PulseEngineMainWindow : public QMainWindow
 {
@@ -22,6 +26,7 @@ public:
 private:
     void setup_dark_theme();
     void create_menu_bar();
+    void create_toolbar();
     QWidget* create_left_panel();
     QSplitter* create_center_panel();
     QWidget* create_logo_widget();
@@ -35,12 +40,19 @@ private:
     QTreeWidget* m_hierarchyTree = nullptr;
     entt::entity m_selectedEntity = entt::null;
 
+    QFileSystemModel* m_fileModel = nullptr;
+    QListView* m_fileView = nullptr;
+
     QLineEdit* m_tagEdit = nullptr;
     QDoubleSpinBox* m_posX = nullptr;
     QDoubleSpinBox* m_posY = nullptr;
     QDoubleSpinBox* m_scaleX = nullptr;
     QDoubleSpinBox* m_scaleY = nullptr;
     QDoubleSpinBox* m_rotation = nullptr;
+
+    QLineEdit* m_scriptPathEdit = nullptr;
+    QPushButton* m_scriptBrowseBtn = nullptr;
+    QPushButton* m_scriptEditBtn = nullptr;
 
     QAction *toggle_hierarchy_action;
     QAction *toggle_inspector_action;
@@ -54,10 +66,20 @@ private:
     QAction *orthographic_camera_action;
 
 private slots:
-    void on_add_entity();
+    void on_add_entity_click();
+    void on_add_primitive_cube();
+    void on_add_custom_object();
+
     void on_hierarchy_select();
     void on_inspector_change();
     void on_scene_entity_selected(size_t entityID);
+
+    void on_add_script_clicked();
+    void on_edit_script_clicked();
+    void on_create_new_script();
+
+    void on_play_scene();
+    void on_stop_scene();
 
     void on_new_project(); void on_new_scene(); void on_open_project(); void on_open_scene();
     void on_save(); void on_save_as(); void on_export(); void on_import(); void on_close_project(); void on_exit();

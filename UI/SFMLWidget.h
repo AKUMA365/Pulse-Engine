@@ -33,6 +33,7 @@ protected:
 
 private:
     QTimer m_timer;
+    sf::Clock m_deltaClock;
     scene m_scene;
     bool m_initialized = false;
 
@@ -40,6 +41,8 @@ private:
     sf::Vector2i m_lastMousePos;
     bool m_isPanning = false;
     float m_zoomLevel = 1.0f;
+
+    void drawGrid();
 
 private slots:
     void onFrameUpdate();
