@@ -2,9 +2,10 @@
 #define PULSEENGINEMAINWINDOW_H
 
 #include <QMainWindow>
-#include <QTreeWidget>
 #include <QSplitter>
+#include <QTreeWidget>
 #include <entt/entt.hpp>
+#include <string>
 
 class SFMLWidget;
 class QLineEdit;
@@ -15,7 +16,7 @@ class PulseEngineMainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    PulseEngineMainWindow(QWidget *parent = nullptr);
+    PulseEngineMainWindow(const std::string& projectPath = "", QWidget *parent = nullptr);
     ~PulseEngineMainWindow();
 
 private:
@@ -27,6 +28,8 @@ private:
 
     void RefreshHierarchy();
     void UpdateInspector();
+
+    std::string m_projectPath;
 
     SFMLWidget* m_sfmlWidget = nullptr;
     QTreeWidget* m_hierarchyTree = nullptr;

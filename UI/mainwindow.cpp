@@ -12,11 +12,14 @@
 #include <QMenuBar>
 #include <QDebug>
 #include <QFileDialog>
+#include <filesystem>
 #include <QGroupBox>
 #include <QLabel>
 
-PulseEngineMainWindow::PulseEngineMainWindow(QWidget *parent)
-    : QMainWindow(parent)
+namespace fs = std::filesystem;
+
+PulseEngineMainWindow::PulseEngineMainWindow(const std::string& projectPath, QWidget *parent)
+    : QMainWindow(parent), m_projectPath(projectPath)
 {
     setWindowTitle("Pulse Engine");
     setGeometry(100, 100, 1600, 900);
@@ -45,7 +48,24 @@ PulseEngineMainWindow::PulseEngineMainWindow(QWidget *parent)
     if (m_sfmlWidget) {
         connect(m_sfmlWidget, &SFMLWidget::entitySelected, this, &PulseEngineMainWindow::on_scene_entity_selected);
 
-        m_sfmlWidget->GetScene().CreateEntity("Cube Object");
+        // ЛОГИКА ЗАГРУЗКИ ПРОЕКТА
+        if (!m_projectPath.empty()) {
+            std::string scenePath = m_projectPath + "/scene.json";
+
+            // Если сцена уже есть на диске - грузим её
+            if (fs::exists(scenePath)) {
+                m_sfmlWidget->GetScene().LoadScene(scenePath);
+                qDebug() << "Loaded scene from:" << QString::fromStdString(scenePath);
+            } else {
+                // Если нет - создаем дефолтный куб
+                m_sfmlWidget->GetScene().CreateEntity("Cube Object");
+            }
+            setWindowTitle("Pulse Engine - " + QString::fromStdString(fs::path(m_projectPath).filename().string()));
+        } else {
+            // Если запустили без проекта
+            m_sfmlWidget->GetScene().CreateEntity("Cube Object");
+        }
+
         RefreshHierarchy();
     }
 }
@@ -243,10 +263,22 @@ void PulseEngineMainWindow::on_inspector_change()
 void PulseEngineMainWindow::on_save()
 {
     if (!m_sfmlWidget) return;
-    QString fileName = QFileDialog::getSaveFileName(this, "Save Scene", "", "JSON Files (*.json)");
+
+    if (!m_projectPath.empty()) {
+        std::string sceneFile = m_projectPath + "/scene.json";
+        m_sfmlWidget->GetScene().SaveScene(sceneFile);
+        QMessageBox::information(this, "Pulse Engine", "Project saved successfully!");
+    } else {
+        on_save_as();
+    }
+}
+
+void PulseEngineMainWindow::on_save_as()
+{
+    if (!m_sfmlWidget) return;
+    QString fileName = QFileDialog::getSaveFileName(this, "Save Scene As...", "", "JSON Files (*.json)");
     if (!fileName.isEmpty()) {
         m_sfmlWidget->GetScene().SaveScene(fileName.toStdString());
-        qDebug() << "Scene saved to" << fileName;
     }
 }
 
@@ -257,11 +289,8 @@ void PulseEngineMainWindow::on_open_scene()
     if (!fileName.isEmpty()) {
         m_sfmlWidget->GetScene().LoadScene(fileName.toStdString());
         RefreshHierarchy();
-        qDebug() << "Scene loaded from" << fileName;
     }
 }
-
-// ... (остальной код UI и setup_dark_theme без изменений, слоты-заглушки) ...
 
 void PulseEngineMainWindow::setup_dark_theme()
 {
@@ -455,7 +484,6 @@ void PulseEngineMainWindow::create_menu_bar() {
 
 void PulseEngineMainWindow::on_new_project() {} void PulseEngineMainWindow::on_new_scene() {}
 void PulseEngineMainWindow::on_open_project() {}
-void PulseEngineMainWindow::on_save_as() {}
 void PulseEngineMainWindow::on_export() {} void PulseEngineMainWindow::on_import() {}
 void PulseEngineMainWindow::on_close_project() {}
 void PulseEngineMainWindow::on_exit() { close(); }

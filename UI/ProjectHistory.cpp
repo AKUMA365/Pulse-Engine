@@ -7,6 +7,7 @@
 #include <QJsonArray>
 #include <QDateTime>
 #include <QDebug>
+#include <filesystem>
 
 namespace fs = std::filesystem;
 
@@ -20,14 +21,18 @@ void ProjectHistory::AddProject(const std::string& name, const fs::path& path) {
     QString currentDate = QDateTime::currentDateTime().toString("dd.MM.yy HH:mm");
 
     std::erase_if(projects, [&](const ProjectMetadata& p) {
-        return fs::equivalent(p.path, path);
+        std::error_code ec;
+        if (fs::exists(p.path, ec) && fs::exists(path, ec)) {
+            return fs::equivalent(p.path, path, ec);
+        }
+        return p.path.lexically_normal() == path.lexically_normal();
     });
 
     ProjectMetadata newMeta;
     newMeta.name = name;
     newMeta.path = path;
     newMeta.lastUpdate = currentDate.toStdString();
-    
+
     projects.insert(projects.begin(), newMeta);
 
     Save(projects);
@@ -45,10 +50,11 @@ std::vector<ProjectMetadata> ProjectHistory::GetProjects() {
 
     for (const auto& item : array) {
         QJsonObject obj = item.toObject();
-        
-        fs::path p(obj["path"].toString().toStdString());
 
-        if (fs::exists(p)) {
+        fs::path p(obj["path"].toString().toStdString());
+        std::error_code ec;
+
+        if (fs::exists(p, ec)) {
             ProjectMetadata meta;
             meta.name = obj["name"].toString().toStdString();
             meta.lastUpdate = obj["last_update"].toString().toStdString();
